@@ -1,140 +1,550 @@
-import { useState } from 'react'
+// import { useState, useEffect, useRef } from 'react'
+// import { Html5QrcodeScanner } from 'html5-qrcode'
+
+// function App() {
+//   const [partNumber, setPartNumber] = useState("")
+//   const [specData, setSpecData] = useState(null)
+//   const [stage, setStage] = useState("Stage 1")
+//   const [measuredValues, setMeasuredValues] = useState({})
+//   const [status, setStatus] = useState(null)
+//   const [remark, setRemark] = useState("")
+//   const [isSubmitting, setIsSubmitting] = useState(false)
+//   const [serverMessage, setServerMessage] = useState("")
+//   const [isScanning, setIsScanning] = useState(false)
+//   const [manualInput, setManualInput] = useState("") // FIX: Controlled input for dev mode
+
+//   const hasScannedRef = useRef(false)
+
+//   // Fetch Part Parameters from Backend
+//   useEffect(() => {
+//     if (partNumber) {
+//       setServerMessage("Fetching part configuration...")
+//       fetch(`http://localhost:8000/api/get-spec/${partNumber}`)
+//         .then(res => {
+//           if (!res.ok) throw new Error("Part not found in Master Specs sheet.")
+//           return res.json()
+//         })
+//         .then(data => {
+//           setSpecData(data)
+//           const initialValues = {}
+//           if (data.parameters) {
+//             data.parameters.forEach(param => {
+//               initialValues[param] = ""
+//             })
+//           }
+//           setMeasuredValues(initialValues)
+//           setServerMessage("")
+//         })
+//         .catch(err => {
+//           setServerMessage(err.message)
+//           setSpecData(null)
+//           setMeasuredValues({})
+//         })
+//     }
+//   }, [partNumber])
+
+//   // Camera integration
+//   useEffect(() => {
+//     if (isScanning) {
+//       hasScannedRef.current = false
+//       const scanner = new Html5QrcodeScanner("reader", { qrbox: { width: 250, height: 250 }, fps: 5 })
+//       scanner.render((decodedText) => {
+//         if (hasScannedRef.current) return
+//         hasScannedRef.current = true
+//         setPartNumber(decodedText.trim())
+//         setIsScanning(false)
+//       }, (_err) => {})
+
+//       return () => {
+//         scanner.clear().catch(e => console.error("Scanner clear fault", e))
+//       }
+//     }
+//   }, [isScanning])
+
+//   const handleInputChange = (paramName, value) => {
+//     setMeasuredValues(prev => ({ ...prev, [paramName]: value }))
+//   }
+
+//   const isAllMeasured = specData?.parameters?.every(param => measuredValues[param]?.trim() !== "")
+
+//   const handleReset = () => {
+//     setPartNumber("")
+//     setSpecData(null)
+//     setMeasuredValues({})
+//     setStatus(null)
+//     setRemark("")
+//     setServerMessage("")
+//     setManualInput("") // FIX: Also reset manual input box
+//   }
+
+//   const handleLogSubmission = async (finalStatus) => {
+//     if (!partNumber || !specData) {
+//       alert("Please scan a valid part first.")
+//       return
+//     }
+//     if (!isAllMeasured) {
+//       alert("Please fill in ALL parameter values before submitting.")
+//       return
+//     }
+//     if (finalStatus === "RED" && !remark) {
+//       setStatus("RED")
+//       return
+//     }
+
+//     setIsSubmitting(true)
+//     setServerMessage("Submitting inspection log...")
+
+//     try {
+//       const response = await fetch("http://localhost:8000/api/log-inspection", {
+//         method: "POST",
+//         headers: { "Content-Type": "application/json" },
+//         body: JSON.stringify({
+//           part_number: partNumber,
+//           part_name: specData.part_name,
+//           current_stage: stage,
+//           measured_values: measuredValues,
+//           status: finalStatus || status,
+//           worker_remark: remark || null
+//         })
+//       })
+
+//       const data = await response.json()
+//       if (response.ok) {
+//         setServerMessage(data.message)
+//         setTimeout(() => { handleReset() }, 3000)
+//       } else {
+//         setServerMessage(data.detail || "Server rejected the request.")
+//       }
+//     } catch {
+//       setServerMessage("Cannot reach backend. Is the Python server running?")
+//     } finally {
+//       setIsSubmitting(false)
+//     }
+//   }
+
+//   return (
+//     <div className="min-h-screen bg-gray-100 flex flex-col items-center p-6">
+//       <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8 mt-10 border border-gray-200">
+//         <h1 className="text-3xl font-bold text-center text-gray-800 mb-6">IQC Inspection Portal</h1>
+
+//         {/* Stage Selector */}
+//         <div className="mb-6">
+//           <label className="block text-gray-700 font-bold mb-2 text-sm">Inspection Stage:</label>
+//           <select
+//             value={stage}
+//             onChange={(e) => setStage(e.target.value)}
+//             disabled={partNumber !== ""}
+//             className="w-full p-3 bg-gray-50 border-2 border-gray-300 rounded-lg text-gray-800 font-medium focus:border-blue-500 disabled:opacity-60"
+//           >
+//             <option value="Stage 1">Stage 1: Base Assembly</option>
+//             <option value="Stage 2">Stage 2: Performance Testing</option>
+//             <option value="Stage 3">Stage 3: Final Packaging</option>
+//           </select>
+//         </div>
+
+//         {/* Part Number Input / Display */}
+//         <div className="mb-6">
+//           {partNumber ? (
+//             <div className="bg-blue-50 border-2 border-blue-500 rounded-lg p-4 text-center relative">
+//               <span className="block text-sm text-blue-600 font-bold mb-1">Part Loaded</span>
+//               <span className="text-2xl font-black text-gray-900">{partNumber}</span>
+//               <button
+//                 onClick={handleReset}
+//                 className="absolute top-2 right-2 text-red-500 font-bold text-sm"
+//               >
+//                 Reset
+//               </button>
+//             </div>
+//           ) : (
+//             <div className="space-y-4">
+//               {/* FIX: Controlled input with manualInput state, placeholder has no fake code */}
+//               <div>
+//                 <label className="block text-gray-600 text-xs font-semibold mb-1">
+//                   Dev Mode: Type Part Code (e.g. BSH-01, RTR-02)
+//                 </label>
+//                 <input
+//                   type="text"
+//                   placeholder="Enter part code and press Enter..."
+//                   value={manualInput}
+//                   onChange={(e) => setManualInput(e.target.value)}
+//                   onKeyDown={(e) => {
+//                     if (e.key === 'Enter' && manualInput.trim()) {
+//                       setPartNumber(manualInput.trim())
+//                     }
+//                   }}
+//                   className="w-full p-2 border border-dashed border-gray-400 rounded bg-yellow-50 text-center font-mono"
+//                 />
+//               </div>
+
+//               {isScanning ? (
+//                 <div>
+//                   <div id="reader" className="w-full rounded-lg overflow-hidden border-2 border-blue-500"></div>
+//                   <button
+//                     onClick={() => setIsScanning(false)}
+//                     className="w-full mt-4 bg-gray-500 text-white font-bold py-3 rounded-lg"
+//                   >
+//                     Cancel Scan
+//                   </button>
+//                 </div>
+//               ) : (
+//                 <button
+//                   onClick={() => setIsScanning(true)}
+//                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-5 rounded-lg text-xl shadow-md transition-all active:scale-95"
+//                 >
+//                   📷 SCAN QR CODE
+//                 </button>
+//               )}
+//             </div>
+//           )}
+//         </div>
+
+//         {/* Part Info + Parameter Inputs */}
+//         {specData && (
+//           <div className="bg-gray-50 border border-gray-300 rounded-lg p-4 mb-6">
+//             <h3 className="text-xl font-black text-gray-800 mb-1">{specData.part_name}</h3>
+//             {/* FIX: group is now returned by backend, safe to display */}
+//             {specData.group && (
+//               <p className="text-sm font-bold text-blue-600 mb-4">Group: {specData.group}</p>
+//             )}
+
+//             <div className="space-y-4">
+//               {specData.parameters && specData.parameters.map((param, idx) => (
+//                 <div key={idx}>
+//                   <label className="block text-gray-700 font-bold mb-1 text-xs">{param}:</label>
+//                   <input
+//                     type="text"
+//                     placeholder="Enter measured value..."
+//                     value={measuredValues[param] || ""}
+//                     onChange={(e) => handleInputChange(param, e.target.value)}
+//                     className="w-full p-3 border-2 border-gray-300 rounded-lg text-lg focus:outline-none focus:border-blue-500"
+//                   />
+//                 </div>
+//               ))}
+//             </div>
+//           </div>
+//         )}
+
+//         {/* Pass / Fail Buttons */}
+//         {specData && isAllMeasured && !status && (
+//           <div className="grid grid-cols-2 gap-4">
+//             <button
+//               onClick={() => handleLogSubmission("GREEN")}
+//               disabled={isSubmitting}
+//               className="bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-lg text-lg shadow-sm"
+//             >
+//               ✅ PASS
+//             </button>
+//             <button
+//               onClick={() => handleLogSubmission("RED")}
+//               disabled={isSubmitting}
+//               className="bg-red-500 hover:bg-red-600 text-white font-bold py-4 rounded-lg text-lg shadow-sm"
+//             >
+//               ❌ FAIL
+//             </button>
+//           </div>
+//         )}
+
+//         {/* Remark Box for RED */}
+//         {status === "RED" && (
+//           <div className="mt-4">
+//             <h2 className="text-lg font-bold text-red-600 mb-2">Log Defect Remark</h2>
+//             <textarea
+//               placeholder="Describe the defect (Hindi or English)..."
+//               value={remark}
+//               onChange={(e) => setRemark(e.target.value)}
+//               className="w-full p-4 border-2 border-red-300 rounded-lg h-24 text-base focus:outline-none focus:border-red-500 mb-4"
+//             />
+//             <div className="flex gap-4">
+//               <button
+//                 onClick={() => setStatus(null)}
+//                 className="w-1/3 bg-gray-300 text-gray-800 font-bold py-3 rounded-lg"
+//               >
+//                 Cancel
+//               </button>
+//               <button
+//                 onClick={() => handleLogSubmission("RED")}
+//                 disabled={isSubmitting || !remark}
+//                 className="w-2/3 bg-red-600 text-white font-bold py-3 rounded-lg disabled:opacity-50"
+//               >
+//                 Submit Defect Record
+//               </button>
+//             </div>
+//           </div>
+//         )}
+
+//         {/* Server Message */}
+//         {serverMessage && (
+//           <div className="mt-6 p-4 bg-blue-50 text-blue-800 font-bold text-center rounded-lg border border-blue-200">
+//             {serverMessage}
+//           </div>
+//         )}
+//       </div>
+//     </div>
+//   )
+// }
+
+// export default App
+import { useState, useEffect, useRef } from 'react'
+import { Html5QrcodeScanner } from 'html5-qrcode'
 
 function App() {
-  const [partName, setPartName] = useState("")
-  const [status, setStatus] = useState(null) // 'GREEN', 'YELLOW', 'RED'
+  const [partNumber, setPartNumber] = useState("")
+  const [specData, setSpecData] = useState(null)
+  const [stage, setStage] = useState("Stage 1")
+  const [measuredValues, setMeasuredValues] = useState({})
+  const [overallStatus, setOverallStatus] = useState(null)
   const [remark, setRemark] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [serverMessage, setServerMessage] = useState("")
+  const [isScanning, setIsScanning] = useState(false)
+  const [manualInput, setManualInput] = useState("")
 
-  const handleAction = async (selectedStatus) => {
-    if (!partName) {
-      alert("Please enter or scan a part name first!")
-      return
-    }
+  const hasScannedRef = useRef(false)
 
-    // If they click RED, just open the remark box. Don't submit yet.
-    if (selectedStatus === "RED" && !remark) {
-      setStatus("RED")
-      return
+  useEffect(() => {
+    if (partNumber) {
+      setServerMessage("Fetching part configuration...")
+      fetch(`http://localhost:8000/api/get-spec/${partNumber}`)
+        .then(res => {
+          if (!res.ok) throw new Error("Part not found in Master Specs sheet.")
+          return res.json()
+        })
+        .then(data => {
+          setSpecData(data)
+          const initialValues = {}
+          if (data.parameters) {
+            data.parameters.forEach(param => {
+              initialValues[param] = ""
+            })
+          }
+          setMeasuredValues(initialValues)
+          setServerMessage("")
+        })
+        .catch(err => {
+          setServerMessage(err.message)
+          setSpecData(null)
+          setMeasuredValues({})
+        })
     }
+  }, [partNumber])
+
+  useEffect(() => {
+    if (isScanning) {
+      hasScannedRef.current = false
+      const scanner = new Html5QrcodeScanner("reader", { qrbox: { width: 250, height: 250 }, fps: 5 })
+      scanner.render((decodedText) => {
+        if (hasScannedRef.current) return
+        hasScannedRef.current = true
+        setPartNumber(decodedText.trim())
+        setIsScanning(false)
+      }, (_err) => {})
+      return () => { scanner.clear().catch(e => console.error(e)) }
+    }
+  }, [isScanning])
+
+  const handleRating = (paramName, value) => {
+    setMeasuredValues(prev => ({ ...prev, [paramName]: value }))
+  }
+
+  const handleReset = () => {
+    setPartNumber("")
+    setSpecData(null)
+    setMeasuredValues({})
+    setOverallStatus(null)
+    setRemark("")
+    setServerMessage("")
+    setManualInput("")
+  }
+
+  // All parameters must have a rating selected
+  const isAllRated = specData?.parameters?.every(param => measuredValues[param] !== "")
+
+  const handleLogSubmission = async (finalStatus) => {
+    if (!partNumber || !specData) return
+    if (!isAllRated) { alert("Please rate ALL parameters before submitting."); return }
+    if (finalStatus === "RED" && !remark) { setOverallStatus("RED"); return }
 
     setIsSubmitting(true)
-    setServerMessage("Logging to Google Sheets...")
+    setServerMessage("Submitting inspection log...")
 
     try {
       const response = await fetch("http://localhost:8000/api/log-inspection", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          part_name: partName,
-          status: selectedStatus || status,
-          worker_remark: remark || null,
-        }),
+          part_number: partNumber,
+          part_name: specData.part_name,
+          current_stage: stage,
+          measured_values: measuredValues,
+          status: finalStatus,
+          worker_remark: remark || null
+        })
       })
 
       const data = await response.json()
-      setServerMessage(data.message)
-
-      // Reset the form for the next scan
-      setTimeout(() => {
-        setPartName("")
-        setStatus(null)
-        setRemark("")
-        setServerMessage("")
-      }, 2000)
-
-    } catch (error) {
-      setServerMessage("Error: Could not connect to backend!")
+      if (response.ok) {
+        setServerMessage(data.message)
+        setTimeout(() => { handleReset() }, 3000)
+      } else {
+        setServerMessage(data.detail || "Server rejected the request.")
+      }
+    } catch {
+      setServerMessage("Cannot reach backend. Is the Python server running?")
     } finally {
       setIsSubmitting(false)
     }
   }
 
+  // Color config for the 3 buttons per parameter
+  const ratings = [
+    { value: "GREEN",  label: "✅ OK",     active: "bg-green-500 text-white",  inactive: "bg-gray-100 text-gray-500 border border-gray-300" },
+    { value: "YELLOW", label: "⚠️ Marginal", active: "bg-yellow-400 text-gray-900", inactive: "bg-gray-100 text-gray-500 border border-gray-300" },
+    { value: "RED",    label: "❌ Fail",   active: "bg-red-500 text-white",    inactive: "bg-gray-100 text-gray-500 border border-gray-300" },
+  ]
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center p-6">
       <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8 mt-10 border border-gray-200">
+        <h1 className="text-3xl font-bold text-center text-gray-800 mb-6">IQC Inspection Portal</h1>
 
-        <h1 className="text-3xl font-bold text-center text-gray-800 mb-8">
-          Pump QA Scanner
-        </h1>
-
-        {/* Fake QR Scanner Input (For testing) */}
-        <div className="mb-8">
-          <label className="block text-gray-700 font-bold mb-2">Scanned Part:</label>
-          <input
-            type="text"
-            placeholder="e.g., Slip Ring 45mm"
-            value={partName}
-            onChange={(e) => setPartName(e.target.value)}
-            className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg focus:outline-none focus:border-blue-500"
-          />
+        {/* Stage Selector */}
+        <div className="mb-6">
+          <label className="block text-gray-700 font-bold mb-2 text-sm">Inspection Stage:</label>
+          <select
+            value={stage}
+            onChange={(e) => setStage(e.target.value)}
+            disabled={partNumber !== ""}
+            className="w-full p-3 bg-gray-50 border-2 border-gray-300 rounded-lg text-gray-800 font-medium focus:border-blue-500 disabled:opacity-60"
+          >
+            <option value="Stage 1">Stage 1: Base Assembly</option>
+            <option value="Stage 2">Stage 2: Performance Testing</option>
+            <option value="Stage 3">Stage 3: Final Packaging</option>
+          </select>
         </div>
 
-        {/* The Traffic Light Buttons */}
-        {!status && (
-          <div className="flex flex-col gap-4">
-            <button
-              onClick={() => handleAction("GREEN")}
-              disabled={isSubmitting}
-              className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-6 rounded-lg text-2xl shadow-md transition-all active:scale-95"
-            >
-              ✅ PASS (GOOD)
-            </button>
+        {/* Part Number Input / Display */}
+        <div className="mb-6">
+          {partNumber ? (
+            <div className="bg-blue-50 border-2 border-blue-500 rounded-lg p-4 text-center relative">
+              <span className="block text-sm text-blue-600 font-bold mb-1">Part Loaded</span>
+              <span className="text-2xl font-black text-gray-900">{partNumber}</span>
+              <button onClick={handleReset} className="absolute top-2 right-2 text-red-500 font-bold text-sm">Reset</button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-gray-600 text-xs font-semibold mb-1">Dev Mode: Type Part Code</label>
+                <input
+                  type="text"
+                  placeholder="e.g. BSH-01, RTR-02..."
+                  value={manualInput}
+                  onChange={(e) => setManualInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && manualInput.trim()) setPartNumber(manualInput.trim()) }}
+                  className="w-full p-2 border border-dashed border-gray-400 rounded bg-yellow-50 text-center font-mono"
+                />
+              </div>
+              {isScanning ? (
+                <div>
+                  <div id="reader" className="w-full rounded-lg overflow-hidden border-2 border-blue-500"></div>
+                  <button onClick={() => setIsScanning(false)} className="w-full mt-4 bg-gray-500 text-white font-bold py-3 rounded-lg">Cancel Scan</button>
+                </div>
+              ) : (
+                <button onClick={() => setIsScanning(true)} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-5 rounded-lg text-xl shadow-md transition-all active:scale-95">
+                  📷 SCAN QR CODE
+                </button>
+              )}
+            </div>
+          )}
+        </div>
 
-            <button
-              onClick={() => handleAction("YELLOW")}
-              disabled={isSubmitting}
-              className="w-full bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold py-6 rounded-lg text-2xl shadow-md transition-all active:scale-95"
-            >
-              ⚠️ HOLD (CHECK)
-            </button>
+        {/* Parameter Rating Cards */}
+        {specData && (
+          <div className="bg-gray-50 border border-gray-300 rounded-lg p-4 mb-6">
+            <h3 className="text-xl font-black text-gray-800 mb-1">{specData.part_name}</h3>
+            {specData.group && <p className="text-sm font-bold text-blue-600 mb-4">Group: {specData.group}</p>}
 
-            <button
-              onClick={() => handleAction("RED")}
-              disabled={isSubmitting}
-              className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-6 rounded-lg text-2xl shadow-md transition-all active:scale-95"
-            >
-              ❌ REJECT (BAD)
-            </button>
+            <div className="space-y-4">
+              {specData.parameters && specData.parameters.map((param, idx) => (
+                <div key={idx} className="bg-white border border-gray-200 rounded-lg p-3">
+                  <p className="text-gray-800 font-bold text-sm mb-2">{param}</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {ratings.map(r => (
+                      <button
+                        key={r.value}
+                        onClick={() => handleRating(param, r.value)}
+                        className={`py-2 px-1 rounded-lg text-xs font-bold transition-all ${
+                          measuredValues[param] === r.value ? r.active : r.inactive
+                        }`}
+                      >
+                        {r.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* The Red Workflow: Remark Box */}
-        {status === "RED" && (
-          <div className="animate-fade-in-up">
-            <h2 className="text-xl font-bold text-red-600 mb-4">Log Defect Details</h2>
-            <textarea
-              placeholder="Why is it bad? (e.g., isme scratch hai...)"
-              value={remark}
-              onChange={(e) => setRemark(e.target.value)}
-              className="w-full p-4 border-2 border-red-300 rounded-lg h-32 text-lg focus:outline-none focus:border-red-500 mb-4"
-            />
-            <div className="flex gap-4">
+        {/* Overall Pass / Fail / Escalate — only shows when all params rated */}
+        {specData && isAllRated && !overallStatus && (
+          <div className="space-y-3">
+            <p className="text-center text-gray-600 font-bold text-sm">Overall Decision:</p>
+            <div className="grid grid-cols-3 gap-2">
               <button
-                onClick={() => setStatus(null)}
-                className="w-1/3 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-4 rounded-lg text-lg transition-all active:scale-95"
+                onClick={() => handleLogSubmission("GREEN")}
+                disabled={isSubmitting}
+                className="bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-lg text-sm shadow-sm"
               >
-                Cancel
+                ✅ PASS
               </button>
               <button
-                onClick={() => handleAction("RED")}
-                disabled={isSubmitting || !remark}
-                className="w-2/3 bg-red-500 hover:bg-red-600 text-white font-bold py-4 rounded-lg text-lg shadow-md transition-all active:scale-95 disabled:opacity-50"
+                onClick={() => handleLogSubmission("YELLOW")}
+                disabled={isSubmitting}
+                className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold py-4 rounded-lg text-sm shadow-sm"
               >
-                {isSubmitting ? "Submitting..." : "❌ Confirm Reject"}
+                ⚠️ BOSS
+              </button>
+              <button
+                onClick={() => handleLogSubmission("RED")}
+                disabled={isSubmitting}
+                className="bg-red-500 hover:bg-red-600 text-white font-bold py-4 rounded-lg text-sm shadow-sm"
+              >
+                ❌ FAIL
               </button>
             </div>
           </div>
         )}
 
-        {/* Server feedback message */}
-        {serverMessage && (
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-center text-blue-700 font-semibold">
-            {serverMessage}
+        {/* Remark Box for RED */}
+        {overallStatus === "RED" && (
+          <div className="mt-4">
+            <h2 className="text-lg font-bold text-red-600 mb-2">Log Defect Remark</h2>
+            <textarea
+              placeholder="Describe the defect (Hindi or English)..."
+              value={remark}
+              onChange={(e) => setRemark(e.target.value)}
+              className="w-full p-4 border-2 border-red-300 rounded-lg h-24 text-base focus:outline-none focus:border-red-500 mb-4"
+            />
+            <div className="flex gap-4">
+              <button onClick={() => setOverallStatus(null)} className="w-1/3 bg-gray-300 text-gray-800 font-bold py-3 rounded-lg">Cancel</button>
+              <button
+                onClick={() => handleLogSubmission("RED")}
+                disabled={isSubmitting || !remark}
+                className="w-2/3 bg-red-600 text-white font-bold py-3 rounded-lg disabled:opacity-50"
+              >
+                Submit Defect Record
+              </button>
+            </div>
           </div>
         )}
 
+        {/* Server Message */}
+        {serverMessage && (
+          <div className="mt-6 p-4 bg-blue-50 text-blue-800 font-bold text-center rounded-lg border border-blue-200">
+            {serverMessage}
+          </div>
+        )}
       </div>
     </div>
   )
