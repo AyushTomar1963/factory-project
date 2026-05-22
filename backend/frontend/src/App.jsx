@@ -23,7 +23,7 @@ function App() {
     setServerMessage("Logging to Google Sheets...")
 
     try {
-      const response = await fetch("http://localhost:8000/api/log-inspection", {
+      const response = await fetch("https://factory-project-pcim.onrender.com/api/log-inspection", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

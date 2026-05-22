@@ -25,7 +25,7 @@ function App() {
     if (partNumber && sheetId) {
       setServerMessage("Fetching part configuration...")
       // FIX: Appended ?sheet_id=${sheetId} to the URL
-      fetch(`http://localhost:8000/api/get-spec/${partNumber}?sheet_id=${sheetId}`)
+      fetch(`https://factory-project-pcim.onrender.com/api/get-spec/${partNumber}?sheet_id=${sheetId}`)
         .then(res => {
           if (!res.ok) throw new Error("Part not found or invalid Sheet ID.")
           return res.json()
@@ -90,7 +90,7 @@ function App() {
     setServerMessage("Submitting inspection log...")
 
     try {
-      const response = await fetch("http://localhost:8000/api/log-inspection", {
+      const response = await fetch("/log-inspection", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -157,7 +157,7 @@ function App() {
               }
             }}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors"
-          >
+          > 
             Connect Station
           </button>
           
