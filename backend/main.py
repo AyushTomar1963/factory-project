@@ -1,4 +1,3 @@
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -22,29 +21,15 @@ app.add_middleware(
 )
 
 # -----------------------------------------------------------------
-# 1. INITIALIZE GOOGLE SHEETS
+# 1. INITIALIZE GOOGLE SHEETS CONNECTION
+# Note: We only connect to the bot account here. 
+# We don't open a specific sheet until a request comes in!
 # -----------------------------------------------------------------
 try:
     gc = gspread.service_account(filename='google_credentials.json')
-    SHEET_ID = os.getenv("SPREADSHEET_ID")
-    spreadsheet = gc.open_by_key(SHEET_ID)
-    
-    log_sheet = spreadsheet.worksheet("Inspection_Logs")
-    specs_sheet = spreadsheet.worksheet("Master_Specs")
-    print("Connected to both Inspection_Logs and Master_Specs successfully!")
-
-    expected_headers = ["Timestamp", "Part Number", "Part Name", "Stage", "Measurements", "Status", "Worker Remark", "AI Category", "AI Formal Report"]
-    first_row = log_sheet.row_values(1)
-    
-    if first_row != expected_headers:
-        print("Headers missing or outdated! Re-injecting correct headers...")
-        if first_row:
-            log_sheet.delete_rows(1)
-        log_sheet.insert_row(expected_headers, 1)
-        print("Headers corrected successfully.")
-
+    print("Connected to Google Service Account successfully!")
 except Exception as e:
-    print(f"Failed to connect to Google Sheets: {e}")
+    print(f"Failed to connect to Google Service Account: {e}")
 
 # -----------------------------------------------------------------
 # 2. INITIALIZE AI BRAIN
@@ -60,11 +45,12 @@ else:
 # 3. DATA STRUCTURES
 # -----------------------------------------------------------------
 class InspectionLogRequest(BaseModel):
+    sheet_id: str   # <--- Dynamically accepts the ID from the frontend
     part_number: str
     part_name: str
     current_stage: str
-    measured_values: Dict[str, str]  # values are now "GREEN", "YELLOW", or "RED"
-    status: str                       # overall: "GREEN", "YELLOW", or "RED"
+    measured_values: Dict[str, str]
+    status: str
     worker_remark: Optional[str] = None
 
 def clean(s: str) -> str:
@@ -72,22 +58,18 @@ def clean(s: str) -> str:
 
 @app.get("/ping")
 def ping_server():
-    return {"message": "Python API is Live and Master Specs are Ready!"}
-
-@app.get("/api/debug")
-def debug():
-    try:
-        raw = specs_sheet.get_all_values()
-        return {"rows": raw[:3]}
-    except Exception as e:
-        return {"error": str(e)}
+    return {"message": "Python API is Live!"}
 
 # -----------------------------------------------------------------
 # 4. ENDPOINT: FETCH SPECS DYNAMICALLY
 # -----------------------------------------------------------------
 @app.get("/api/get-spec/{part_number}")
-def get_spec(part_number: str):
+def get_spec(part_number: str, sheet_id: str):
     try:
+        # Dynamically open the specific factory's sheet using the URL parameter
+        spreadsheet = gc.open_by_key(sheet_id)
+        specs_sheet = spreadsheet.worksheet("Master_Specs")
+
         raw = specs_sheet.get_all_values()
         rows = raw[1:]
 
@@ -115,6 +97,11 @@ def get_spec(part_number: str):
                 }
 
         raise HTTPException(status_code=404, detail="Part Code not found in Master Specs!")
+    
+    except gspread.exceptions.SpreadsheetNotFound:
+        raise HTTPException(status_code=404, detail="Invalid Sheet ID or Bot lacks Editor permission.")
+    except gspread.exceptions.WorksheetNotFound:
+        raise HTTPException(status_code=404, detail="Missing 'Master_Specs' tab in the Google Sheet.")
     except HTTPException as he:
         raise he
     except Exception as e:
@@ -126,8 +113,18 @@ def get_spec(part_number: str):
 @app.post("/api/log-inspection")
 def log_inspection(request: InspectionLogRequest):
 
+    # Dynamically open the specific factory's sheet using the JSON body data
+    try:
+        spreadsheet = gc.open_by_key(request.sheet_id)
+        log_sheet = spreadsheet.worksheet("Inspection_Logs")
+    except gspread.exceptions.SpreadsheetNotFound:
+        raise HTTPException(status_code=404, detail="Invalid Sheet ID or Bot lacks Editor permission.")
+    except gspread.exceptions.WorksheetNotFound:
+        raise HTTPException(status_code=404, detail="Missing 'Inspection_Logs' tab in the Google Sheet.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to access sheet: {str(e)}")
+
     # --- STAGE GATEKEEPER ---
-    # Only GREEN passes to next stage. YELLOW and RED both block progression.
     try:
         all_logs = log_sheet.get_all_records()
 
@@ -163,7 +160,6 @@ def log_inspection(request: InspectionLogRequest):
         raise HTTPException(status_code=500, detail="History verification failed.")
 
     # --- AI CATEGORIZATION ---
-    # Triggers on RED (fail) and YELLOW (send to boss) — not on GREEN
     ai_category = "N/A"
     ai_report = "N/A"
 
@@ -203,7 +199,6 @@ def log_inspection(request: InspectionLogRequest):
     # --- SAVE TO GOOGLE SHEETS ---
     try:
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        # Format: "ID(17H7): GREEN | OD(39.98-40.02mm): RED | TL: YELLOW"
         formatted_measurements = " | ".join([f"{k}: {v}" for k, v in request.measured_values.items()])
 
         row_data = [
