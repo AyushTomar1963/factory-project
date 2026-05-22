@@ -396,10 +396,11 @@ function App() {
   }
 
   // Color config for the 3 buttons per parameter
+  // Color config for the 3 buttons per parameter
   const ratings = [
-    { value: "GREEN",  label: "✅ OK",     active: "bg-green-500 text-white",  inactive: "bg-gray-100 text-gray-500 border border-gray-300" },
-    { value: "YELLOW", label: "⚠️ Marginal", active: "bg-yellow-400 text-gray-900", inactive: "bg-gray-100 text-gray-500 border border-gray-300" },
-    { value: "RED",    label: "❌ Fail",   active: "bg-red-500 text-white",    inactive: "bg-gray-100 text-gray-500 border border-gray-300" },
+    { value: "GREEN",  label: "✅ GO",      active: "bg-green-500 text-white",  inactive: "bg-gray-100 text-gray-500 border border-gray-300" },
+    { value: "YELLOW", label: "⚠️ TIGHT",   active: "bg-yellow-400 text-gray-900", inactive: "bg-gray-100 text-gray-500 border border-gray-300" },
+    { value: "RED",    label: "❌ LOOSE",    active: "bg-red-500 text-white",    inactive: "bg-gray-100 text-gray-500 border border-gray-300" },
   ]
 
   return (
