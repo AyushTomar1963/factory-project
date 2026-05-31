@@ -4,3 +4,4 @@ pydantic
 gspread
 google-generativeai
 python-dotenv
+pyjwt==2.10.1
