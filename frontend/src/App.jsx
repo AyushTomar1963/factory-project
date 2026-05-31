@@ -2,15 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { Html5QrcodeScanner } from 'html5-qrcode'
 const API_BASE = "https://factory-project-pcim.onrender.com"
 
-const SUPPLIERS = [
-  "Select Supplier...",
-  "Supplier A - Mumbai",
-  "Supplier B - Pune",
-  "Supplier C - Ahmedabad",
-  "Supplier D - Chennai",
-  "Supplier E - Delhi",
-]
-
 const CHECKING_FREQUENCIES = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]
 
 function App() {
@@ -20,12 +11,14 @@ function App() {
   const [sheetId, setSheetId] = useState(localStorage.getItem("factorySheetId") || "")
   const [loginUsername, setLoginUsername] = useState("")
   const [loginPassword, setLoginPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [tempSheetId, setTempSheetId] = useState(localStorage.getItem("factorySheetId") || "")
   const [authError, setAuthError] = useState("")
   const [isAuthenticating, setIsAuthenticating] = useState(false)
 
   // Intake form
   const [supplier, setSupplier] = useState("")
+  const [suppliers, setSuppliers] = useState([])
   const [invoiceNumber, setInvoiceNumber] = useState("")
   const [lotQuantity, setLotQuantity] = useState("")
   const [checkingFrequency, setCheckingFrequency] = useState("")
@@ -119,6 +112,17 @@ function App() {
   }, [partNumber, sheetId, token])
 
   useEffect(() => {
+    if (token && sheetId) {
+      fetch(`${API_BASE}/api/suppliers?sheet_id=${sheetId}`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      })
+        .then(res => res.json())
+        .then(data => setSuppliers(data.suppliers || []))
+        .catch(() => setSuppliers([]))
+    }
+  }, [token, sheetId])
+
+  useEffect(() => {
     if (isScanning) {
       hasScannedRef.current = false
       const scanner = new Html5QrcodeScanner("reader", { qrbox: { width: 250, height: 250 }, fps: 5 })
@@ -209,6 +213,7 @@ function App() {
     return (
       <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+          <img src="/logo.png" alt="Kirloskar Logo" className="h-16 mx-auto mb-4" />
           <h1 className="text-2xl font-black text-center text-gray-900 mb-2">Kirloskar QA Portal</h1>
           <p className="text-sm text-gray-500 text-center mb-6">Authenticate to connect your station.</p>
           <form onSubmit={handleLogin} className="space-y-4">
@@ -222,7 +227,23 @@ function App() {
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1">Password</label>
-              <input type="password" required placeholder="••••••••" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg text-sm" />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  placeholder="••••••••"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg text-sm pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(prev => !prev)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-sm"
+                >
+                  {showPassword ? "🙈" : "👁️"}
+                </button>
+              </div>
             </div>
             {authError && <p className="text-red-500 text-xs font-bold text-center">{authError}</p>}
             <button type="submit" disabled={isAuthenticating} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors disabled:opacity-50">
@@ -246,6 +267,7 @@ function App() {
       </div>
 
       <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8 mt-10 border border-gray-200">
+        <img src="/logo.png" alt="Kirloskar Logo" className="h-10 mx-auto mb-3" />
         <h1 className="text-3xl font-bold text-center text-gray-800 mb-6">IQC Inspection Portal</h1>
 
         {/* Stage Selector */}
@@ -299,7 +321,8 @@ function App() {
                 <label className="block text-xs font-bold text-gray-700 mb-1">Supplier</label>
                 <select value={supplier} onChange={(e) => setSupplier(e.target.value)}
                   className="w-full p-3 border-2 border-gray-300 rounded-lg text-sm bg-white focus:border-blue-500 focus:outline-none">
-                  {SUPPLIERS.map(s => <option key={s} value={s}>{s}</option>)}
+                  <option value="">Select Supplier...</option>
+                  {suppliers.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div>
@@ -448,9 +471,12 @@ function AdminDashboard({ token, currentUser, handleLogout, apiBase }) {
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-black text-gray-900">Factory Control Center</h1>
-            <p className="text-sm font-bold text-blue-600 mt-1">Logged in as {currentUser} (Admin)</p>
+          <div className="flex items-center gap-4">
+            <img src="/logo.png" alt="Kirloskar Logo" className="h-12" />
+            <div>
+              <h1 className="text-3xl font-black text-gray-900">Factory Control Center</h1>
+              <p className="text-sm font-bold text-blue-600 mt-1">Logged in as {currentUser} (Admin)</p>
+            </div>
           </div>
           <button onClick={handleLogout} className="bg-red-50 text-red-600 hover:bg-red-100 font-bold py-2 px-4 rounded-lg transition-colors">Logout Station</button>
         </div>

@@ -550,6 +550,24 @@ def get_spec(part_number: str, sheet_id: str, current_user: dict = Depends(get_c
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/suppliers")
+def get_suppliers(sheet_id: str, current_user: dict = Depends(get_current_user)):
+    try:
+        spreadsheet = gc.open_by_key(sheet_id)
+        suppliers_sheet = spreadsheet.worksheet("Suppliers")
+        all_rows = suppliers_sheet.get_all_values()
+
+        supplier_col_index = 3  # Column D
+        suppliers = [
+            row[supplier_col_index].strip()
+            for row in all_rows[1:]
+            if len(row) > supplier_col_index and row[supplier_col_index].strip()
+        ]
+        return {"suppliers": suppliers}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/ai-chat")
 def ai_chat(request: AIChatRequest, current_user: dict = Depends(get_current_user)):
     if not GEMINI_KEY:
