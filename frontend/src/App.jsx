@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Html5QrcodeScanner } from 'html5-qrcode'
-
-const API_BASE = "http://localhost:8000"
+const API_BASE = "https://factory-project-pcim.onrender.com"
 
 const SUPPLIERS = [
   "Select Supplier...",
