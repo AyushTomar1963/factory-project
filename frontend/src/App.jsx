@@ -204,18 +204,18 @@ function App() {
   }
 
   const ratings = [
-    { value: "GREEN",  label: "✅ GO",    active: "bg-green-500 text-white",     inactive: "bg-gray-100 text-gray-500 border border-gray-300" },
-    { value: "YELLOW", label: "⚠️ TIGHT", active: "bg-yellow-400 text-gray-900", inactive: "bg-gray-100 text-gray-500 border border-gray-300" },
-    { value: "RED",    label: "❌ LOOSE", active: "bg-red-500 text-white",        inactive: "bg-gray-100 text-gray-500 border border-gray-300" },
+    { value: "GREEN",  label: "✅ GO",    active: "bg-green-600 text-white shadow-lg shadow-green-200 scale-[1.02]",     inactive: "bg-white text-green-700 border border-green-200 hover:border-green-300 hover:bg-green-50" },
+    { value: "YELLOW", label: "⚠️ TIGHT", active: "bg-amber-500 text-white shadow-lg shadow-amber-200 scale-[1.02]", inactive: "bg-white text-amber-700 border border-amber-200 hover:border-amber-300 hover:bg-amber-50" },
+    { value: "RED",    label: "❌ LOOSE", active: "bg-red-600 text-white shadow-lg shadow-red-200 scale-[1.02]",        inactive: "bg-white text-red-700 border border-red-200 hover:border-red-300 hover:bg-red-50" },
   ]
 
   if (!token) {
     return (
-      <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8 border border-gray-200">
-          <img src="/logo.jpg" alt="Kirloskar Logo" className="h-16 mx-auto mb-4" />
-          <h1 className="text-2xl font-black text-center text-gray-900 mb-2">Kirloskar QA Portal</h1>
-          <p className="text-sm text-gray-500 text-center mb-6">Authenticate to connect your station.</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex flex-col items-center justify-center p-6">
+        <div className="w-full max-w-md rounded-2xl bg-gradient-to-br from-white via-blue-50 to-indigo-50 shadow-[0_20px_70px_rgba(30,64,175,0.15)] p-8 border border-blue-100 backdrop-blur-sm">
+          <img src="/logo.jpg" alt="Shalin Industries Logo" className="h-16 mx-auto mb-4" />
+          <h1 className="text-2xl font-black text-center text-slate-900 mb-2">Shalin Industries QA Portal</h1>
+          <p className="text-sm text-slate-500 text-center mb-6">Authenticate to connect your station.</p>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1">Google Sheet ID</label>
@@ -250,6 +250,7 @@ function App() {
               {isAuthenticating ? "Authenticating..." : "Login"}
             </button>
           </form>
+          <p className="mt-6 text-center text-xs font-semibold text-blue-700">Powered by Shalin Industries © 2025</p>
         </div>
       </div>
     )
@@ -260,21 +261,24 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center p-6 relative">
-      <div className="absolute top-4 right-4 flex flex-col items-end">
-        <span className="text-xs font-bold text-blue-600 mb-1">Logged in as {currentUser}</span>
-        <button onClick={handleLogout} className="text-xs font-bold text-gray-400 hover:text-red-500 transition-colors">Logout Station</button>
+    <div className="min-h-screen bg-gradient-to-b from-white via-blue-50 to-white flex flex-col items-center p-6 relative">
+      <div className="w-full max-w-md overflow-hidden rounded-t-2xl bg-gradient-to-r from-blue-700 to-indigo-700 px-6 py-4 shadow-lg shadow-blue-200 flex items-center justify-between text-white">
+        <div>
+          <p className="text-xs uppercase tracking-[0.28em] text-blue-100/90 font-semibold">Shalin Industries</p>
+          <h2 className="text-lg font-black">AI-Powered QC Portal</h2>
+        </div>
+        <button onClick={handleLogout} className="text-xs font-bold text-white/90 hover:text-white transition-colors">Logout</button>
       </div>
 
-      <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8 mt-10 border border-gray-200">
-        <img src="/logo.jpg" alt="Kirloskar Logo" className="h-10 mx-auto mb-3" />
-        <h1 className="text-3xl font-bold text-center text-gray-800 mb-6">IQC Inspection Portal</h1>
+      <div className="w-full max-w-md bg-white rounded-b-2xl rounded-t-none shadow-[0_22px_70px_rgba(30,64,175,0.12)] p-8 border border-blue-100 border-t-0">
+        <img src="/logo.jpg" alt="Shalin Industries Logo" className="h-10 mx-auto mb-3" />
+        <h1 className="text-3xl font-bold text-center text-slate-800 mb-6">Shalin IQC Hub</h1>
 
         {/* Stage Selector */}
         <div className="mb-6">
           <label className="block text-gray-700 font-bold mb-2 text-sm">Inspection Stage:</label>
           <select value={stage} onChange={(e) => setStage(e.target.value)} disabled={partNumber !== ""}
-            className="w-full p-3 bg-gray-50 border-2 border-gray-300 rounded-lg text-gray-800 font-medium focus:border-blue-500 disabled:opacity-60">
+            className="w-full p-3 bg-white border-2 border-blue-100 rounded-xl text-gray-800 font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60 shadow-sm">
             <option value="Stage 1">Stage 1: Base Assembly</option>
             <option value="Stage 2">Stage 2: Performance Testing</option>
             <option value="Stage 3">Stage 3: Final Packaging</option>
@@ -284,7 +288,7 @@ function App() {
         {/* Part Number */}
         <div className="mb-6">
           {partNumber ? (
-            <div className="bg-blue-50 border-2 border-blue-500 rounded-lg p-4 text-center relative">
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-4 text-center relative shadow-sm">
               <span className="block text-sm text-blue-600 font-bold mb-1">Part Loaded</span>
               <span className="text-2xl font-black text-gray-900">{partNumber}</span>
               <button onClick={handleReset} className="absolute top-2 right-2 text-red-500 font-bold text-sm">Reset</button>
@@ -292,11 +296,10 @@ function App() {
           ) : (
             <div className="space-y-4">
               <div>
-                <label className="block text-gray-600 text-xs font-semibold mb-1">Dev Mode: Type Part Code</label>
                 <input type="text" placeholder="e.g. BSH-01, RTR-02..." value={manualInput}
                   onChange={(e) => setManualInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && manualInput.trim()) setPartNumber(manualInput.trim()) }}
-                  className="w-full p-2 border border-dashed border-gray-400 rounded bg-yellow-50 text-center font-mono" />
+                  className="w-full p-3 border border-dashed border-blue-200 rounded-xl bg-white text-center font-mono shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none" />
               </div>
               {isScanning ? (
                 <div>
@@ -304,7 +307,7 @@ function App() {
                   <button onClick={() => setIsScanning(false)} className="w-full mt-4 bg-gray-500 text-white font-bold py-3 rounded-lg">Cancel Scan</button>
                 </div>
               ) : (
-                <button onClick={() => setIsScanning(true)} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-5 rounded-lg text-xl shadow-md transition-all active:scale-95">
+                <button onClick={() => setIsScanning(true)} className="w-full bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white font-black py-5 rounded-2xl text-xl shadow-lg shadow-blue-200 transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.99]">
                   📷 SCAN QR CODE
                 </button>
               )}
@@ -314,7 +317,7 @@ function App() {
 
         {/* INTAKE FORM */}
         {specData && !intakeSubmitted && (
-          <div className="bg-gray-50 border-2 border-blue-200 rounded-xl p-5 mb-6">
+          <div className="bg-white border-2 border-blue-100 rounded-2xl p-5 mb-6 shadow-sm hover:shadow-lg transition-shadow duration-300">
             <h2 className="text-lg font-black text-gray-800 mb-4">📋 Lot Intake Details</h2>
             <div className="space-y-4">
               <div>
@@ -346,7 +349,7 @@ function App() {
                 </select>
               </div>
             </div>
-            <button onClick={handleIntakeSubmit} className="w-full mt-5 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors">
+            <button onClick={handleIntakeSubmit} className="w-full mt-5 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white font-bold py-3 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5">
               Confirm & Proceed to Inspection →
             </button>
           </div>
@@ -365,17 +368,17 @@ function App() {
 
         {/* Parameter Rating Cards */}
         {specData && intakeSubmitted && (
-          <div className="bg-gray-50 border border-gray-300 rounded-lg p-4 mb-6">
+          <div className="bg-white border border-blue-100 rounded-2xl p-4 mb-6 shadow-sm hover:shadow-lg transition-all duration-300">
             <h3 className="text-xl font-black text-gray-800 mb-1">{specData.part_name}</h3>
             {specData.group && <p className="text-sm font-bold text-blue-600 mb-4">Group: {specData.group}</p>}
             <div className="space-y-4">
               {specData.parameters && specData.parameters.map((param, idx) => (
-                <div key={idx} className="bg-white border border-gray-200 rounded-lg p-3">
+                <div key={idx} className="bg-gradient-to-br from-white to-blue-50/40 border border-blue-100 rounded-2xl p-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
                   <p className="text-gray-800 font-bold text-sm mb-2">{param}</p>
                   <div className="grid grid-cols-3 gap-2">
                     {ratings.map(r => (
                       <button key={r.value} onClick={() => handleRating(param, r.value)}
-                        className={`py-2 px-1 rounded-lg text-xs font-bold transition-all ${measuredValues[param] === r.value ? r.active : r.inactive}`}>
+                        className={`py-3 px-2 rounded-xl text-xs font-black tracking-wide transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md ${measuredValues[param] === r.value ? r.active : r.inactive}`}>
                         {r.label}
                       </button>
                     ))}
@@ -391,20 +394,20 @@ function App() {
           <div className="space-y-3">
             <p className="text-center text-gray-600 font-bold text-sm">Overall Decision:</p>
             <div className="grid grid-cols-3 gap-2">
-              <button onClick={() => handleLogSubmission("GREEN")} disabled={isSubmitting} className="bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-lg text-sm shadow-sm">✅ PASS</button>
-              <button onClick={() => setOverallStatus("YELLOW")} disabled={isSubmitting} className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold py-4 rounded-lg text-sm shadow-sm">⚠️ BOSS</button>
-              <button onClick={() => handleLogSubmission("RED")} disabled={isSubmitting} className="bg-red-500 hover:bg-red-600 text-white font-bold py-4 rounded-lg text-sm shadow-sm">❌ FAIL</button>
+              <button onClick={() => handleLogSubmission("GREEN")} disabled={isSubmitting} className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-black py-5 rounded-2xl text-sm shadow-lg shadow-green-100 transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.99]">✅ PASS</button>
+              <button onClick={() => setOverallStatus("YELLOW")} disabled={isSubmitting} className="bg-gradient-to-r from-amber-400 to-yellow-400 hover:from-amber-500 hover:to-yellow-500 text-slate-900 font-black py-5 rounded-2xl text-sm shadow-lg shadow-amber-100 transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.99]">⚠️ HOLD</button>
+              <button onClick={() => handleLogSubmission("RED")} disabled={isSubmitting} className="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-black py-5 rounded-2xl text-sm shadow-lg shadow-red-100 transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.99]">❌ FAIL</button>
             </div>
           </div>
         )}
 
         {/* YELLOW: AI Supervisor */}
         {overallStatus === "YELLOW" && (
-          <div className="mt-4 p-4 border-2 border-yellow-400 bg-yellow-50 rounded-xl">
+          <div className="mt-4 p-4 border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-white rounded-2xl shadow-sm">
             <h2 className="text-lg font-black text-yellow-800 mb-2">⚠️ Marginal: AI Supervisor</h2>
             <p className="text-xs text-yellow-700 mb-4 font-bold">Ask the AI for guidance or log your doubt before escalating.</p>
             {aiReply && (
-              <div className="mb-4 p-3 bg-white border border-yellow-200 rounded-lg text-sm text-gray-800 shadow-inner whitespace-pre-wrap">
+              <div className="mb-4 p-3 bg-white border border-amber-200 rounded-xl text-sm text-gray-800 shadow-inner whitespace-pre-wrap">
                 <strong className="text-blue-600">AI Response:</strong><br />{aiReply}
               </div>
             )}
@@ -432,14 +435,14 @@ function App() {
 
         {/* RED: Remark */}
         {overallStatus === "RED" && (
-          <div className="mt-4">
+          <div className="mt-4 rounded-2xl border border-red-100 bg-gradient-to-br from-red-50 to-white p-4 shadow-sm">
             <h2 className="text-lg font-bold text-red-600 mb-2">Log Defect Remark</h2>
             <textarea placeholder="Describe the defect (Hindi or English)..." value={remark}
               onChange={(e) => setRemark(e.target.value)}
-              className="w-full p-4 border-2 border-red-300 rounded-lg h-24 text-base focus:outline-none focus:border-red-500 mb-4" />
+              className="w-full p-4 border-2 border-red-200 rounded-2xl h-24 text-base focus:outline-none focus:border-red-500 mb-4 shadow-sm" />
             <div className="flex gap-4">
-              <button onClick={() => { setOverallStatus(null); setRemark("") }} className="w-1/3 bg-gray-300 text-gray-800 font-bold py-3 rounded-lg">Cancel</button>
-              <button onClick={() => handleLogSubmission("RED")} disabled={isSubmitting || !remark} className="w-2/3 bg-red-600 text-white font-bold py-3 rounded-lg disabled:opacity-50">Submit Defect Record</button>
+              <button onClick={() => { setOverallStatus(null); setRemark("") }} className="w-1/3 bg-gray-200 text-gray-800 font-bold py-3 rounded-xl hover:bg-gray-300 transition-colors">Cancel</button>
+              <button onClick={() => handleLogSubmission("RED")} disabled={isSubmitting || !remark} className="w-2/3 bg-gradient-to-r from-red-600 to-rose-600 text-white font-black py-3 rounded-xl disabled:opacity-50 hover:from-red-700 hover:to-rose-700 transition-all duration-300">Submit Defect Record</button>
             </div>
           </div>
         )}
@@ -468,38 +471,57 @@ function AdminDashboard({ token, currentUser, handleLogout, apiBase }) {
   if (error) return <div className="min-h-screen bg-gray-100 p-6 flex justify-center items-center font-bold text-red-500">Error: {error}</div>
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="min-h-screen bg-gradient-to-b from-white via-blue-50 to-white p-6">
       <div className="max-w-6xl mx-auto space-y-6">
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 flex justify-between items-center">
+        <div className="overflow-hidden rounded-2xl shadow-lg shadow-blue-100 border border-blue-100 bg-gradient-to-r from-blue-700 to-indigo-700 flex justify-between items-center px-6 py-5 text-white">
           <div className="flex items-center gap-4">
-            <img src="/logo.jpg" alt="Kirloskar Logo" className="h-12" />
+            <img src="/logo.jpg" alt="Shalin Industries Logo" className="h-12" />
             <div>
-              <h1 className="text-3xl font-black text-gray-900">Factory Control Center</h1>
-              <p className="text-sm font-bold text-blue-600 mt-1">Logged in as {currentUser} (Admin)</p>
+              <p className="text-xs uppercase tracking-[0.28em] text-blue-100/90 font-semibold">Shalin Industries</p>
+              <h1 className="text-3xl font-black text-white">Factory Control Center</h1>
+              <p className="text-sm font-bold text-blue-100 mt-1">Logged in as {currentUser} (Admin)</p>
             </div>
           </div>
-          <button onClick={handleLogout} className="bg-red-50 text-red-600 hover:bg-red-100 font-bold py-2 px-4 rounded-lg transition-colors">Logout Station</button>
+          <button onClick={handleLogout} className="bg-white/10 backdrop-blur px-4 py-2 rounded-xl font-bold text-white border border-white/20 hover:bg-white/20 transition-colors">Logout</button>
         </div>
 
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 border-t-4 border-t-blue-500">
-              <h3 className="text-gray-500 font-bold text-sm mb-1">Total All-Time</h3>
-              <p className="text-3xl font-black text-gray-900">{stats.total_inspections}</p>
+            <div className="group bg-white rounded-2xl shadow-sm hover:shadow-lg p-6 border border-gray-200 border-t-4 border-t-blue-500 transition-all duration-300 hover:-translate-y-1">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <h3 className="text-gray-500 font-bold text-sm mb-1">Total All-Time</h3>
+                  <p className="text-3xl font-black text-gray-900">{stats.total_inspections}</p>
+                </div>
+                <span className="text-2xl">🔵</span>
+              </div>
               <p className="text-xs text-gray-400 mt-2 font-bold">+ {stats.today_total} logged today</p>
             </div>
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 border-t-4 border-t-green-500">
-              <h3 className="text-gray-500 font-bold text-sm mb-1">Yield Rate</h3>
-              <p className={`text-3xl font-black ${stats.yield_rate >= 90 ? 'text-green-600' : 'text-yellow-600'}`}>{stats.yield_rate}%</p>
+            <div className="group bg-white rounded-2xl shadow-sm hover:shadow-lg p-6 border border-gray-200 border-t-4 border-t-green-500 transition-all duration-300 hover:-translate-y-1">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <h3 className="text-gray-500 font-bold text-sm mb-1">Yield Rate</h3>
+                  <p className={`text-3xl font-black ${stats.yield_rate >= 90 ? 'text-green-600' : 'text-amber-600'}`}>{stats.yield_rate}%</p>
+                </div>
+                <span className="text-2xl">🟢</span>
+              </div>
               <p className="text-xs text-gray-400 mt-2 font-bold">{stats.failed_inspections} total defects</p>
             </div>
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 border-t-4 border-t-red-500">
-              <h3 className="text-gray-500 font-bold text-sm mb-1">Top Defect Reason</h3>
-              <p className="text-xl font-black text-gray-900 mt-2 truncate" title={stats.top_defect}>{stats.top_defect}</p>
+            <div className="group bg-white rounded-2xl shadow-sm hover:shadow-lg p-6 border border-gray-200 border-t-4 border-t-red-500 transition-all duration-300 hover:-translate-y-1">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <h3 className="text-gray-500 font-bold text-sm mb-1">Top Defect Reason</h3>
+                  <p className="text-xl font-black text-gray-900 mt-2 truncate" title={stats.top_defect}>{stats.top_defect}</p>
+                </div>
+                <span className="text-2xl">🔴</span>
+              </div>
               <p className="text-xs text-gray-400 mt-2 font-bold">Generated by Gemini AI</p>
             </div>
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 border-t-4 border-t-purple-500">
-              <h3 className="text-gray-500 font-bold text-sm mb-2">Failure Heatmap</h3>
+            <div className="group bg-white rounded-2xl shadow-sm hover:shadow-lg p-6 border border-gray-200 border-t-4 border-t-purple-500 transition-all duration-300 hover:-translate-y-1">
+              <div className="flex items-start justify-between mb-2">
+                <h3 className="text-gray-500 font-bold text-sm mb-2">Failure Heatmap</h3>
+                <span className="text-2xl">🟣</span>
+              </div>
               <div className="space-y-1">
                 <div className="flex justify-between text-xs font-bold text-gray-600"><span>Stage 1</span><span className="text-red-500">{stats.stage_failures?.["Stage 1"] || 0}</span></div>
                 <div className="flex justify-between text-xs font-bold text-gray-600"><span>Stage 2</span><span className="text-red-500">{stats.stage_failures?.["Stage 2"] || 0}</span></div>
