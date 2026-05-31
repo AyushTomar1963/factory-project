@@ -557,7 +557,26 @@ def get_suppliers(sheet_id: str, current_user: dict = Depends(get_current_user))
         suppliers_sheet = spreadsheet.worksheet("Suppliers")
         all_rows = suppliers_sheet.get_all_values()
 
-        supplier_col_index = 3  # Column D
+        if not all_rows:
+            return {"suppliers": []}
+
+        headers = [str(cell).strip().lower() for cell in all_rows[0]]
+        if "supplier_name" in headers:
+            supplier_col_index = headers.index("supplier_name")
+        else:
+            supplier_col_index = 0
+            max_supplier_count = 0
+
+            for col_index in range(max(len(row) for row in all_rows)):
+                count = 0
+                for row in all_rows[1:]:
+                    if len(row) > col_index and row[col_index].strip():
+                        count += 1
+
+                if count > max_supplier_count:
+                    max_supplier_count = count
+                    supplier_col_index = col_index
+
         suppliers = [
             row[supplier_col_index].strip()
             for row in all_rows[1:]

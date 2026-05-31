@@ -213,7 +213,7 @@ function App() {
     return (
       <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8 border border-gray-200">
-          <img src="/logo.png" alt="Kirloskar Logo" className="h-16 mx-auto mb-4" />
+          <img src="/logo.jpg" alt="Kirloskar Logo" className="h-16 mx-auto mb-4" />
           <h1 className="text-2xl font-black text-center text-gray-900 mb-2">Kirloskar QA Portal</h1>
           <p className="text-sm text-gray-500 text-center mb-6">Authenticate to connect your station.</p>
           <form onSubmit={handleLogin} className="space-y-4">
@@ -267,7 +267,7 @@ function App() {
       </div>
 
       <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8 mt-10 border border-gray-200">
-        <img src="/logo.png" alt="Kirloskar Logo" className="h-10 mx-auto mb-3" />
+        <img src="/logo.jpg" alt="Kirloskar Logo" className="h-10 mx-auto mb-3" />
         <h1 className="text-3xl font-bold text-center text-gray-800 mb-6">IQC Inspection Portal</h1>
 
         {/* Stage Selector */}
@@ -472,7 +472,7 @@ function AdminDashboard({ token, currentUser, handleLogout, apiBase }) {
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <img src="/logo.png" alt="Kirloskar Logo" className="h-12" />
+            <img src="/logo.jpg" alt="Kirloskar Logo" className="h-12" />
             <div>
               <h1 className="text-3xl font-black text-gray-900">Factory Control Center</h1>
               <p className="text-sm font-bold text-blue-600 mt-1">Logged in as {currentUser} (Admin)</p>
