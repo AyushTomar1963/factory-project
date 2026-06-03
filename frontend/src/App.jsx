@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Html5QrcodeScanner } from 'html5-qrcode'
-const API_BASE = "https://factory-project-pcim.onrender.com"
+const API_BASE = "https://factory-project-1.onrender.com"
 
 const CHECKING_FREQUENCIES = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]
 
@@ -204,17 +204,17 @@ function App() {
   }
 
   const ratings = [
-    { value: "GREEN",  label: "✅ GO",    active: "bg-green-600 text-white shadow-lg shadow-green-200 scale-[1.02]",     inactive: "bg-white text-green-700 border border-green-200 hover:border-green-300 hover:bg-green-50" },
-    { value: "YELLOW", label: "⚠️ TIGHT", active: "bg-amber-500 text-white shadow-lg shadow-amber-200 scale-[1.02]", inactive: "bg-white text-amber-700 border border-amber-200 hover:border-amber-300 hover:bg-amber-50" },
-    { value: "RED",    label: "❌ LOOSE", active: "bg-red-600 text-white shadow-lg shadow-red-200 scale-[1.02]",        inactive: "bg-white text-red-700 border border-red-200 hover:border-red-300 hover:bg-red-50" },
+    { value: "GREEN",  label: "✅ GO",        active: "bg-green-600 text-white shadow-lg shadow-green-200 scale-[1.02]",     inactive: "bg-white text-green-700 border border-green-200 hover:border-green-300 hover:bg-green-50" },
+    { value: "YELLOW", label: "⚠️ NO GO",     active: "bg-amber-500 text-white shadow-lg shadow-amber-200 scale-[1.02]", inactive: "bg-white text-amber-700 border border-amber-200 hover:border-amber-300 hover:bg-amber-50" },
+    { value: "RED",    label: "❌ DOUBTFUL",  active: "bg-red-600 text-white shadow-lg shadow-red-200 scale-[1.02]",        inactive: "bg-white text-red-700 border border-red-200 hover:border-red-300 hover:bg-red-50" },
   ]
 
   if (!token) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-md rounded-2xl bg-gradient-to-br from-white via-blue-50 to-indigo-50 shadow-[0_20px_70px_rgba(30,64,175,0.15)] p-8 border border-blue-100 backdrop-blur-sm">
-          <img src="/logo.jpg" alt="Shalin Industries Logo" className="h-16 mx-auto mb-4" />
-          <h1 className="text-2xl font-black text-center text-slate-900 mb-2">Shalin Industries QA Portal</h1>
+          <img src="/logo.jpg" alt="Rushab Industries Logo" className="h-16 mx-auto mb-4" />
+          <h1 className="text-2xl font-black text-center text-slate-900 mb-2">Rushab Industries QA Portal</h1>
           <p className="text-sm text-slate-500 text-center mb-6">Authenticate to connect your station.</p>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
@@ -250,7 +250,7 @@ function App() {
               {isAuthenticating ? "Authenticating..." : "Login"}
             </button>
           </form>
-          <p className="mt-6 text-center text-xs font-semibold text-blue-700">Powered by Shalin Industries © 2025</p>
+          <p className="mt-6 text-center text-xs font-semibold text-blue-700">Powered by Rushab Industries © 2025</p>
         </div>
       </div>
     )
@@ -264,15 +264,15 @@ function App() {
     <div className="min-h-screen bg-gradient-to-b from-white via-blue-50 to-white flex flex-col items-center p-6 relative">
       <div className="w-full max-w-md overflow-hidden rounded-t-2xl bg-gradient-to-r from-blue-700 to-indigo-700 px-6 py-4 shadow-lg shadow-blue-200 flex items-center justify-between text-white">
         <div>
-          <p className="text-xs uppercase tracking-[0.28em] text-blue-100/90 font-semibold">Shalin Industries</p>
+              <p className="text-xs uppercase tracking-[0.28em] text-blue-100/90 font-semibold">Rushab Industries</p>
           <h2 className="text-lg font-black">AI-Powered QC Portal</h2>
         </div>
         <button onClick={handleLogout} className="text-xs font-bold text-white/90 hover:text-white transition-colors">Logout</button>
       </div>
 
       <div className="w-full max-w-md bg-white rounded-b-2xl rounded-t-none shadow-[0_22px_70px_rgba(30,64,175,0.12)] p-8 border border-blue-100 border-t-0">
-        <img src="/logo.jpg" alt="Shalin Industries Logo" className="h-10 mx-auto mb-3" />
-        <h1 className="text-3xl font-bold text-center text-slate-800 mb-6">Shalin IQC Hub</h1>
+        <img src="/logo.jpg" alt="Rushab Industries Logo" className="h-10 mx-auto mb-3" />
+        <h1 className="text-3xl font-bold text-center text-slate-800 mb-6">Rushab IQC Hub</h1>
 
         {/* Stage Selector */}
         <div className="mb-6">
@@ -475,9 +475,9 @@ function AdminDashboard({ token, currentUser, handleLogout, apiBase }) {
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="overflow-hidden rounded-2xl shadow-lg shadow-blue-100 border border-blue-100 bg-gradient-to-r from-blue-700 to-indigo-700 flex justify-between items-center px-6 py-5 text-white">
           <div className="flex items-center gap-4">
-            <img src="/logo.jpg" alt="Shalin Industries Logo" className="h-12" />
+            <img src="/logo.jpg" alt="Rushab Industries Logo" className="h-12" />
             <div>
-              <p className="text-xs uppercase tracking-[0.28em] text-blue-100/90 font-semibold">Shalin Industries</p>
+              <p className="text-xs uppercase tracking-[0.28em] text-blue-100/90 font-semibold">Rushab Industries</p>
               <h1 className="text-3xl font-black text-white">Factory Control Center</h1>
               <p className="text-sm font-bold text-blue-100 mt-1">Logged in as {currentUser} (Admin)</p>
             </div>

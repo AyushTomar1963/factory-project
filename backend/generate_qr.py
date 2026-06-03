@@ -1,4 +1,4 @@
-import qrcode
+import generate_qr
 
 codes = [
     "BSH-01", "BSH-02",
@@ -8,6 +8,6 @@ codes = [
 ]
 
 for code in codes:
-    img = qrcode.make(code)
+    img = generate_qr.make(code)
     img.save(f"{code}.png")
     print(f"Generated {code}.png")
