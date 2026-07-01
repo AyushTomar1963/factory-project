@@ -1,0 +1,23 @@
+{
+  "name": "factory-qa-app",
+  "version": "1.0.0",
+  "description": "A full-stack Quality Assurance portal built for factory environments. This system allows workers to log part inspections, enforces stage-based workflow rules, and uses Google's Gemini AI to automatically generate formal management reports for defective parts.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AyushTomar1963/kirloskar-project.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/AyushTomar1963/kirloskar-project/issues"
+  },
+  "homepage": "https://github.com/AyushTomar1963/kirloskar-project#readme",
+  "devDependencies": {
+    "shadcn": "^4.12.0"
+  }
+}

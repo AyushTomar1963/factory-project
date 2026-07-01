@@ -1,10 +1,10 @@
 fastapi
 uvicorn[standard]
 pydantic
-gspread
-google-generativeai
 python-dotenv
 pyjwt==2.10.1
 bcrypt
 python-multipart
-google-auth
+sqlalchemy
+psycopg2-binary
+google-generativeai

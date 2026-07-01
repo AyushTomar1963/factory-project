@@ -1,43 +1,57 @@
 # Factory IQC Inspection Portal
 
-A full-stack Quality Assurance portal built for factory environments. This system allows workers to log part inspections, enforces stage-based workflow rules, and uses Google's Gemini AI to automatically generate formal management reports for defective parts.
+A full-stack Quality Assurance portal built for factory environments. Workers log part inspections, stage-based workflow rules are enforced, and Google's Gemini AI generates formal management reports for defective parts.
 
-## 🚀 Features
-* **QR Code Scanning:** Quickly load part configurations using a camera or barcode scanner.
-* **Smart Master Specs:** Automatically fetches tolerance parameters (Go/Tight/Loose) from a centralized Google Sheet.
-* **Workflow Gatekeeper:** Prevents parts from moving to advanced assembly stages if they haven't passed previous stages.
-* **AI Defect Reporting:** Uses Gemini 2.5 Flash to automatically categorize defects and write 1-sentence formal reports for management when a part fails.
-* **Live Dashboarding:** Pushes all inspection logs directly to a Google Sheet in real-time.
+## Features
 
-## 🛠️ Tech Stack
-* **Frontend:** React, Vite, TailwindCSS, Html5Qrcode
-* **Backend:** Python, FastAPI, Uvicorn
-* **Database/Storage:** Google Sheets API (`gspread`)
-* **AI:** Google Generative AI (`gemini-2.5-flash`)
+- QR code scanning for part configuration lookup
+- Stage-based inspection workflow (Stage 1 → 2 → 3)
+- PostgreSQL-backed product specs, users, and inspection logs
+- AI defect categorization via Gemini
+- Admin dashboard with yield metrics and inspection history
 
-## ⚙️ Local Setup Instructions
+## Tech Stack
 
-### 1. Backend Setup (FastAPI)
-1. Navigate to the `backend` folder:
-   ```bash
-   cd backend
-   pip install -r requirements.txt
-   GEMINI_API_KEY="your_gemini_key"
-SPREADSHEET_ID="your_google_sheet_id"
-Start the local server:
+- **Frontend:** React, Vite, Tailwind CSS, shadcn/ui (Nova)
+- **Backend:** Python, FastAPI, Uvicorn, SQLAlchemy
+- **Database:** PostgreSQL
 
-Bash
+## Local Setup
+
+### 1. PostgreSQL
+
+Install PostgreSQL locally, then create the database and user:
+
+```sql
+CREATE USER factory WITH PASSWORD 'change-me';
+CREATE DATABASE factory_qa OWNER factory;
+```
+
+### 2. Backend
+
+```bash
+cd backend
+copy .env.example .env
+pip install -r requirements.txt
+python seed_test_data.py
 uvicorn main:app --reload
-2. Frontend Setup (React)
-Open a new terminal and navigate to the frontend folder:
+```
 
-Bash
+API runs at `http://localhost:8000`.
+
+### 3. Frontend
+
+```bash
 cd frontend
-Install the Node modules:
-
-Bash
 npm install
-Start the Vite development server:
-
-Bash
 npm run dev
+```
+
+App runs at `http://localhost:5173` (Vite proxies `/api` to the backend).
+
+### Test logins
+
+| Role   | Username | Password   |
+|--------|----------|------------|
+| Admin  | admin    | admin123   |
+| Worker | worker   | worker123  |
