@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Eye, EyeOff, User } from "lucide-react"
+import { Eye, EyeOff, Factory, User } from "lucide-react"
 import {
   Card,
   CardContent,
@@ -44,7 +44,10 @@ export function LoginPage({ onLogin, authError, isAuthenticating }) {
       <div className="flex w-full max-w-sm flex-col gap-6">
         <div className="flex flex-col items-center gap-2 text-center">
           <BrandLogo size="lg" />
-          <p className="font-semibold text-foreground">Rushab Industries</p>
+          <div className="flex items-center gap-2 font-semibold text-foreground">
+            <Factory className="size-5 text-brand-600" />
+            Rushab Industries
+          </div>
         </div>
 
         <Card className="border-brand-100/80 bg-card/90 shadow-[var(--shadow-login)] backdrop-blur-md">
