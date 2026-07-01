@@ -1,5 +1,8 @@
+const PRODUCTION_API_URL = "https://factory-project-2.onrender.com"
+
 export const API_BASE =
-  import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "" : "http://localhost:8000")
+  import.meta.env.VITE_API_URL?.trim() ||
+  (import.meta.env.DEV ? "" : PRODUCTION_API_URL)
 
 export const STORAGE_KEYS = {
   token: "factoryToken",
