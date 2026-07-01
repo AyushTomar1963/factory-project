@@ -1,17 +1,24 @@
+import { Factory } from "lucide-react"
 import { cn } from "../../lib/cn"
 
 export function BrandLogo({ size = "md", className }) {
   const sizes = {
-    sm: "h-10",
-    md: "h-12",
-    lg: "h-16",
+    sm: "size-10 rounded-lg [&_svg]:size-5",
+    md: "size-12 rounded-xl [&_svg]:size-6",
+    lg: "size-16 rounded-2xl [&_svg]:size-8",
   }
   return (
-    <img
-      src="/logo.jpg"
-      alt="Rushab Industries Logo"
-      className={cn(sizes[size], className)}
-    />
+    <div
+      className={cn(
+        "flex shrink-0 items-center justify-center bg-gradient-to-br from-brand-600 to-indigo-700 text-white shadow-md shadow-brand-300/40",
+        sizes[size],
+        className,
+      )}
+      role="img"
+      aria-label="Rushab Industries Logo"
+    >
+      <Factory strokeWidth={2.25} />
+    </div>
   )
 }
 
