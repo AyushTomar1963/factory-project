@@ -7,26 +7,21 @@ import { useAuth } from "./hooks/useAuth"
 export default function App() {
   const auth = useAuth()
 
-  let page = null
-  if (!auth.isAuthenticated) {
-    page = (
-      <LoginPage
-        onLogin={auth.login}
-        authError={auth.authError}
-        isAuthenticating={auth.isAuthenticating}
-      />
-    )
-  } else if (auth.isAdmin) {
-    page = (
-      <AdminDashboardPage
-        token={auth.token}
-        username={auth.username}
-        onLogout={auth.logout}
-      />
-    )
-  } else {
-    page = <WorkerPage token={auth.token} onLogout={auth.logout} />
-  }
+  const page = !auth.isAuthenticated ? (
+    <LoginPage
+      onLogin={auth.login}
+      authError={auth.authError}
+      isAuthenticating={auth.isAuthenticating}
+    />
+  ) : auth.isAdmin ? (
+    <AdminDashboardPage
+      token={auth.token}
+      username={auth.username}
+      onLogout={auth.logout}
+    />
+  ) : (
+    <WorkerPage token={auth.token} onLogout={auth.logout} />
+  )
 
   return (
     <div className="relative min-h-svh">

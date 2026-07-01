@@ -4,17 +4,20 @@ import Lightfall from "./Lightfall"
 const BRAND_COLORS = ["#bfdbfe", "#60a5fa", "#2563eb", "#4338ca"]
 
 export function AppBackground() {
-  const [reducedMotion, setReducedMotion] = useState(false)
-  const [dpr, setDpr] = useState(1)
+  const [reducedMotion, setReducedMotion] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  )
+  const dpr =
+    typeof window !== "undefined"
+      ? Math.min(window.devicePixelRatio || 1, 1.5)
+      : 1
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
-    setReducedMotion(mq.matches)
     const onMotionChange = () => setReducedMotion(mq.matches)
     mq.addEventListener("change", onMotionChange)
-
-    setDpr(Math.min(window.devicePixelRatio || 1, 1.5))
-
     return () => mq.removeEventListener("change", onMotionChange)
   }, [])
 
