@@ -5,17 +5,38 @@ from pydantic import BaseModel
 from typing import Dict, Optional, List
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
+from contextlib import asynccontextmanager
 import os, jwt, bcrypt
 import google.generativeai as genai
 from dotenv import load_dotenv
 
-from database import get_db, engine
+from database import get_db, engine, SessionLocal
 from models import Base, User, Supplier, Product, InspectionLog
 
 load_dotenv()
 Base.metadata.create_all(bind=engine)  # auto-creates tables on startup
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    db = SessionLocal()
+    try:
+        user_count = db.query(User).count()
+    finally:
+        db.close()
+
+    if user_count == 0:
+        print("No users in database — seeding test accounts...")
+        from seed_test_data import seed
+
+        seed()
+    else:
+        print("Database ready — users already exist")
+
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 _cors_origins = os.getenv("CORS_ORIGINS", "*")
 allow_origins = ["*"] if _cors_origins.strip() == "*" else [o.strip() for o in _cors_origins.split(",") if o.strip()]
@@ -82,6 +103,17 @@ class AIChatRequest(BaseModel):
     worker_message:  str
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
+@app.get("/")
+def root():
+    return {
+        "service": "Factory QA API",
+        "status": "ok",
+        "docs": "/docs",
+        "health": "/health",
+        "login": "POST /api/auth/login",
+        "note": "This is the API only. Open your React frontend URL to sign in.",
+    }
 
 @app.get("/ping")
 def ping(): return {"message": "API Live — PostgreSQL backend", "status": "ok"}
