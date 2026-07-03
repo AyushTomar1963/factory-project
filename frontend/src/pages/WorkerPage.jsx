@@ -5,6 +5,7 @@ import {
   OverallDecision,
   YellowSupervisorPanel,
 } from "../components/inspection/DecisionPanels"
+import { InspectionReportDialog } from "../components/inspection/InspectionReportDialog"
 import { InspectionStepper } from "../components/inspection/InspectionStepper"
 import {
   LotIntakeForm,
@@ -157,6 +158,14 @@ export function WorkerPage({ token, onLogout }) {
           </div>
         )}
       </Panel>
+
+      <InspectionReportDialog
+        open={inspection.reportOpen}
+        report={inspection.lastReport}
+        inspector={inspection.reportInspector}
+        onClose={() => inspection.setReportOpen(false)}
+        onNewInspection={inspection.closeReportAndReset}
+      />
     </WorkerShell>
   )
 }

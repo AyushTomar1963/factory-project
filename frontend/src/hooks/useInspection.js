@@ -32,6 +32,9 @@ export function useInspection(token) {
   const [isFetchingSpec, setIsFetchingSpec] = useState(false)
   const [specError, setSpecError] = useState("")
   const [submitMessage, setSubmitMessage] = useState("")
+  const [lastReport, setLastReport] = useState(null)
+  const [reportInspector, setReportInspector] = useState("")
+  const [reportOpen, setReportOpen] = useState(false)
   const [isScanning, setIsScanning] = useState(false)
   const hasScannedRef = useRef(false)
 
@@ -46,6 +49,9 @@ export function useInspection(token) {
     setSubmitMessage("")
     setChatMessage("")
     setAiReply("")
+    setLastReport(null)
+    setReportInspector("")
+    setReportOpen(false)
     setIntake(INITIAL_INTAKE)
     setIntakeSubmitted(false)
     setIsScanning(false)
@@ -182,7 +188,13 @@ export function useInspection(token) {
           checking_frequency: intake.checkingFrequency.toString(),
         })
         setSubmitMessage(data.message)
-        setTimeout(resetInspection, 3000)
+        if (data.report) {
+          setLastReport(data.report)
+          setReportInspector(data.logged_by || "")
+          setReportOpen(true)
+        } else {
+          setTimeout(resetInspection, 3000)
+        }
         return null
       } catch (err) {
         setSubmitMessage(err.message)
@@ -239,5 +251,13 @@ export function useInspection(token) {
     submitIntake,
     askAi,
     submitLog,
+    lastReport,
+    reportInspector,
+    reportOpen,
+    setReportOpen,
+    closeReportAndReset: () => {
+      setReportOpen(false)
+      resetInspection()
+    },
   }
 }

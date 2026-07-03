@@ -6,12 +6,14 @@ from typing import Dict, Optional, List
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from contextlib import asynccontextmanager
+import json
 import os, jwt, bcrypt
 import google.generativeai as genai
 from dotenv import load_dotenv
 
 from database import get_db, engine, SessionLocal
 from models import Base, User, Supplier, Product, InspectionLog
+from report_generator import generate_inspection_report
 
 load_dotenv()
 Base.metadata.create_all(bind=engine)  # auto-creates tables on startup
@@ -178,20 +180,24 @@ Give a short, practical answer (2-3 sentences max)."""
 @app.post("/api/log-inspection")
 def log_inspection(req: InspectionLogRequest, db: Session = Depends(get_db),
                    current_user=Depends(get_current_user)):
-    ai_category, ai_report = "N/A", "N/A"
-    if req.status == "RED" and GEMINI_KEY:
-        measurements_str = ", ".join(f"{k}: {v}" for k,v in req.measured_values.items())
-        prompt = f"""Factory QA assistant. Part '{req.part_name}' REJECTED at '{req.current_stage}'.
-Ratings: {measurements_str}. Remark: '{req.worker_remark or "None"}'.
-1. Categorize issue in 1-3 words. 2. One-sentence formal report.
-Format EXACTLY: [CATEGORY] | [REPORT]"""
-        try:
-            raw = gemini_model.generate_content(prompt).text.replace("```","").strip()
-            parts = raw.split("|")
-            if len(parts) >= 2:
-                ai_category, ai_report = parts[0].strip(), parts[1].strip()
-        except Exception as e:
-            ai_report = f"AI Error: {e}"
+    report_payload = {
+        "part_number": req.part_number,
+        "part_name": req.part_name,
+        "current_stage": req.current_stage,
+        "measured_values": req.measured_values,
+        "status": req.status,
+        "worker_remark": req.worker_remark,
+        "supplier": req.supplier,
+        "invoice_number": req.invoice_number,
+        "lot_quantity": req.lot_quantity,
+        "checking_frequency": req.checking_frequency,
+        "logged_by": current_user["username"],
+    }
+
+    model = gemini_model if GEMINI_KEY else None
+    report = generate_inspection_report(model, report_payload)
+    ai_category = str(report.get("disposition", "N/A"))[:200]
+    ai_report = json.dumps(report)
 
     log = InspectionLog(
         part_name          = req.part_name,
@@ -210,7 +216,13 @@ Format EXACTLY: [CATEGORY] | [REPORT]"""
     )
     db.add(log)
     db.commit()
-    return {"message": f"Logged {req.current_stage} for {req.part_name} by {current_user['username']}"}
+    db.refresh(log)
+    return {
+        "message": f"Logged {req.current_stage} for {req.part_name} by {current_user['username']}",
+        "log_id": log.id,
+        "logged_by": current_user["username"],
+        "report": report,
+    }
 
 # ADMIN DASHBOARD
 @app.get("/api/admin/dashboard-stats")
