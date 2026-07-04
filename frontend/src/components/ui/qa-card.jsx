@@ -20,7 +20,7 @@ export function Panel({ children, className }) {
   return (
     <div
       className={cn(
-        "w-full max-w-md bg-white rounded-b-2xl shadow-[var(--shadow-card)] p-8 border border-brand-100 border-t-0",
+        "mx-auto w-full min-w-0 max-w-md overflow-hidden rounded-b-2xl border border-t-0 border-brand-100 bg-white p-4 shadow-[var(--shadow-card)] sm:p-8",
         className,
       )}
     >

@@ -46,12 +46,12 @@ export function InspectionReportDialog({ open, report, inspector, onClose, onNew
           </DialogDescription>
         </DialogHeader>
 
-        <div className="report-print-actions no-print">
-          <Button variant="primary" size="sm" onClick={handlePrint}>
+        <div className="report-print-actions no-print flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <Button variant="primary" onClick={handlePrint}>
             <Printer className="size-4" />
             Print / Save PDF
           </Button>
-          <Button variant="muted" size="sm" onClick={onNewInspection}>
+          <Button variant="muted" onClick={onNewInspection}>
             New inspection
           </Button>
         </div>

@@ -4,7 +4,7 @@ import { Textarea as ShadcnTextarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 
 const FIELD_CLASS =
-  "h-auto min-h-10 border-2 border-gray-300 rounded-lg px-3 py-2.5 text-sm focus-visible:border-brand-500 focus-visible:ring-brand-100"
+  "h-auto min-h-11 border-2 border-gray-300 rounded-lg px-3 py-2.5 text-base sm:text-sm focus-visible:border-brand-500 focus-visible:ring-brand-100"
 
 export function FormField({ label, htmlFor, children, className }) {
   return (

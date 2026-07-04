@@ -17,10 +17,10 @@ const VARIANTS = {
 }
 
 const SIZES = {
-  sm: "px-4 py-2 text-sm rounded-lg",
-  md: "px-4 py-3 text-sm rounded-xl",
-  lg: "py-5 rounded-2xl text-sm font-black",
-  block: "w-full py-3 rounded-lg font-bold",
+  sm: "min-h-11 px-4 py-2.5 text-sm rounded-lg inline-flex items-center justify-center gap-2",
+  md: "min-h-11 px-4 py-3 text-sm rounded-xl inline-flex items-center justify-center gap-2",
+  lg: "min-h-12 py-4 rounded-2xl text-sm font-black inline-flex items-center justify-center gap-2",
+  block: "w-full min-h-11 py-3 rounded-lg font-bold inline-flex items-center justify-center gap-2",
 }
 
 export function QaButton({

@@ -51,8 +51,8 @@ export function PageHeader({ eyebrow, title, subtitle, onLogout, compact }) {
 
 export function WorkerShell({ header, children }) {
   return (
-    <div className="flex min-h-screen flex-col items-center p-6">
-      {header}
+    <div className="flex min-h-screen w-full min-w-0 flex-col items-center overflow-x-hidden p-4 sm:p-6">
+      <div className="w-full min-w-0 max-w-md">{header}</div>
       {children}
     </div>
   )

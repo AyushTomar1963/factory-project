@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { ScrollTable } from "@/components/ui/scroll-table"
 import { createUser, fetchUsers } from "../../api/admin"
 import { Button } from "../ui/qa-button"
 import { FormField, Input, Select } from "../ui/FormField"
@@ -83,18 +84,22 @@ export function UsersPanel({ token }) {
         {loading ? (
           <p className="text-gray-500 font-semibold">Loading users...</p>
         ) : (
-          <div className="overflow-x-auto -mx-6">
-            <table className="w-full text-left border-collapse text-sm">
+          <ScrollTable label="Station accounts" className="border-0">
+            <table className="min-w-[420px] w-full text-left border-collapse text-sm">
               <thead>
-                <tr className="bg-gray-50 text-xs text-gray-500 uppercase border-y border-gray-200">
-                  <th className="p-4 font-bold">Username</th>
-                  <th className="p-4 font-bold">Role</th>
+                <tr className="border-y border-gray-200 bg-gray-50 text-xs uppercase text-gray-500">
+                  <th className="p-4 font-bold whitespace-nowrap">Username</th>
+                  <th className="p-4 font-bold whitespace-nowrap">Role</th>
                 </tr>
               </thead>
               <tbody>
                 {users.map((user) => (
                   <tr key={user.username} className="border-b border-gray-100">
-                    <td className="p-4 font-mono font-semibold">{user.username}</td>
+                    <td className="p-4">
+                      <span className="block max-w-[12rem] truncate font-mono font-semibold" title={user.username}>
+                        {user.username}
+                      </span>
+                    </td>
                     <td className="p-4">
                       <RoleBadge role={user.role} />
                     </td>
@@ -102,7 +107,7 @@ export function UsersPanel({ token }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollTable>
         )}
       </SectionCard>
 
@@ -131,6 +136,7 @@ export function UsersPanel({ token }) {
           <FormField label="Role" htmlFor="new-role">
             <Select id="new-role" value={role} onChange={(e) => setRole(e.target.value)}>
               <option value="worker">Worker (floor inspections)</option>
+              <option value="store_keeper">Store keeper (inward / issue)</option>
               <option value="admin">Admin (master data + dashboard)</option>
             </Select>
           </FormField>

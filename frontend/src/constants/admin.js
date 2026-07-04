@@ -3,6 +3,7 @@ export const ADMIN_TABS = [
   { id: "products", label: "Product Master", title: "Part specifications" },
   { id: "suppliers", label: "Suppliers", title: "Supplier directory" },
   { id: "users", label: "Users", title: "Station accounts" },
+  { id: "reports", label: "Reports", title: "IQC & store reports" },
 ]
 
 export function getAdminTab(id) {

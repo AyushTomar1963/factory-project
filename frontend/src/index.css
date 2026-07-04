@@ -166,10 +166,24 @@ body {
   * {
     @apply border-border outline-ring/50;
   }
+  html,
+  body,
+  #root {
+    @apply max-w-[100vw] overflow-x-hidden;
+  }
   body {
     @apply bg-background text-foreground;
   }
   html {
     @apply font-sans;
+  }
+}
+
+@layer utilities {
+  .touch-target {
+    @apply inline-flex min-h-11 min-w-11 items-center justify-center;
+  }
+  .tabs-scroll {
+    @apply w-full max-w-full justify-start overflow-x-auto [-webkit-overflow-scrolling:touch];
   }
 }

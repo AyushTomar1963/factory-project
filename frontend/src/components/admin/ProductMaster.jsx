@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { ScrollTable } from "@/components/ui/scroll-table"
 import { Button } from "../ui/qa-button"
 import { FormField, Input } from "../ui/FormField"
 
@@ -169,8 +170,8 @@ export function ProductsTable({ products, onEdit, onDeactivate }) {
   }
 
   return (
-    <div className="overflow-x-auto -mx-6">
-      <table className="w-full text-left border-collapse text-sm">
+    <ScrollTable label="Product master list" className="border-0">
+      <table className="min-w-[720px] w-full text-left border-collapse text-sm">
         <thead>
           <tr className="bg-gray-50 text-xs text-gray-500 uppercase border-y border-gray-200">
             <th className="p-4 font-bold">Part #</th>
@@ -199,18 +200,18 @@ export function ProductsTable({ products, onEdit, onDeactivate }) {
                 </div>
               </td>
               <td className="p-4 whitespace-nowrap">
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-3">
                   <button
                     type="button"
                     onClick={() => onEdit(product)}
-                    className="text-brand-600 font-bold text-xs hover:underline"
+                    className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg px-3 text-brand-600 text-xs font-bold hover:bg-brand-50 active:scale-[0.98]"
                   >
                     Edit
                   </button>
                   <button
                     type="button"
                     onClick={() => onDeactivate(product)}
-                    className="text-red-600 font-bold text-xs hover:underline"
+                    className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg px-3 text-red-600 text-xs font-bold hover:bg-red-50 active:scale-[0.98]"
                   >
                     Deactivate
                   </button>
@@ -220,6 +221,6 @@ export function ProductsTable({ products, onEdit, onDeactivate }) {
           ))}
         </tbody>
       </table>
-    </div>
+    </ScrollTable>
   )
 }

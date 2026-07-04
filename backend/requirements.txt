@@ -8,3 +8,8 @@ python-multipart
 sqlalchemy
 psycopg2-binary
 google-generativeai
+alembic
+pandas
+openpyxl
+pytest
+httpx

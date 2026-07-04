@@ -1,5 +1,5 @@
-from fastapi import FastAPI, HTTPException, Depends, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Dict, Optional, List
@@ -12,8 +12,17 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 
 from database import get_db, engine, SessionLocal
-from models import Base, User, Supplier, Product, InspectionLog
+from models import Base, User, Supplier, Product, InspectionLog, ROLES
 from report_generator import generate_inspection_report
+from store_service import create_store_bins_from_inspection
+from store_routes import router as store_router
+from reports_routes import router as reports_router
+from deps import (
+    SECRET_KEY,
+    ALGORITHM,
+    get_current_user,
+    require_admin,
+)
 
 load_dotenv()
 Base.metadata.create_all(bind=engine)  # auto-creates tables on startup
@@ -39,6 +48,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+app.include_router(store_router)
+app.include_router(reports_router)
 
 _cors_origins = os.getenv("CORS_ORIGINS", "*")
 allow_origins = ["*"] if _cors_origins.strip() == "*" else [o.strip() for o in _cors_origins.split(",") if o.strip()]
@@ -52,9 +63,6 @@ app.add_middleware(
 )
 
 # ── Auth config ───────────────────────────────────────────────────────────────
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "fallback-secret")
-ALGORITHM  = "HS256"
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode(), hashed.encode())
@@ -62,22 +70,6 @@ def verify_password(plain: str, hashed: str) -> bool:
 def create_access_token(data: dict, expires_minutes: int = 480) -> str:
     to_encode = {**data, "exp": datetime.now(timezone.utc) + timedelta(minutes=expires_minutes)}
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-
-def get_current_user(token: str = Depends(oauth2_scheme)):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username = payload.get("sub")
-        role     = payload.get("role")
-        if not username or not role:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        return {"username": username, "role": role}
-    except jwt.PyJWTError:
-        raise HTTPException(status_code=401, detail="Could not validate credentials")
-
-def require_admin(current_user=Depends(get_current_user)):
-    if current_user["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Admin only")
-    return current_user
 
 # ── Gemini AI ─────────────────────────────────────────────────────────────────
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
@@ -215,6 +207,8 @@ def log_inspection(req: InspectionLogRequest, db: Session = Depends(get_db),
         logged_by          = current_user["username"],
     )
     db.add(log)
+    db.flush()
+    create_store_bins_from_inspection(db, log)
     db.commit()
     db.refresh(log)
     return {
@@ -291,8 +285,8 @@ class SupplierCreate(BaseModel):
 def create_user(req: UserCreate, db: Session = Depends(get_db),
                 current_user=Depends(require_admin)):
     username = req.username.strip().lower()
-    if req.role not in ("admin", "worker"):
-        raise HTTPException(status_code=400, detail="Role must be admin or worker")
+    if req.role not in ROLES:
+        raise HTTPException(status_code=400, detail=f"Role must be one of: {', '.join(ROLES)}")
     existing = db.query(User).filter(User.username == username).first()
     if existing:
         raise HTTPException(status_code=409, detail="Username already exists")

@@ -1,10 +1,10 @@
 import {
-  LayoutDashboard,
+  ArrowLeftRight,
+  ClipboardList,
+  LayoutGrid,
   LogOut,
   Package,
-  Truck,
-  Users,
-  ClipboardList,
+  Warehouse,
 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
@@ -40,25 +40,24 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { BrandLogo } from "../layout/Shell"
-import { getAdminTab, ADMIN_TABS } from "../../constants/admin"
+import { getStoreTab, STORE_TABS } from "../../constants/store"
 
 const NAV_ICONS = {
-  dashboard: LayoutDashboard,
-  products: Package,
-  suppliers: Truck,
-  users: Users,
+  bins: LayoutGrid,
+  inward: Package,
+  issue: ArrowLeftRight,
   reports: ClipboardList,
 }
 
-export function AdminAppShell({
+export function StoreAppShell({
   activeTab,
   onTabChange,
   username,
   onLogout,
   children,
 }) {
-  const current = getAdminTab(activeTab)
-  const initials = username?.slice(0, 2).toUpperCase() || "AD"
+  const current = getStoreTab(activeTab)
+  const initials = username?.slice(0, 2).toUpperCase() || "SK"
 
   return (
     <SidebarProvider defaultOpen>
@@ -71,7 +70,7 @@ export function AdminAppShell({
                 Rushab Industries
               </p>
               <p className="truncate text-sm font-bold text-sidebar-foreground">
-                Control Center
+                Store Keeper
               </p>
             </div>
           </div>
@@ -79,10 +78,10 @@ export function AdminAppShell({
 
         <SidebarContent>
           <SidebarGroup>
-            <SidebarGroupLabel>Operations</SidebarGroupLabel>
+            <SidebarGroupLabel>Store operations</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {ADMIN_TABS.map((tab) => {
+                {STORE_TABS.map((tab) => {
                   const Icon = NAV_ICONS[tab.id]
                   return (
                     <SidebarMenuItem key={tab.id}>
@@ -122,7 +121,8 @@ export function AdminAppShell({
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem className="hidden md:inline-flex">
-                Admin
+                <Warehouse className="mr-1 inline size-3.5" />
+                Store
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:inline-flex" />
               <BreadcrumbItem>
@@ -134,7 +134,7 @@ export function AdminAppShell({
           <div className="ml-auto flex items-center gap-3">
             <div className="hidden text-right sm:block">
               <p className="text-sm font-semibold text-foreground">{username}</p>
-              <p className="text-xs text-muted-foreground">Administrator</p>
+              <p className="text-xs text-muted-foreground">Store Keeper</p>
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger className="rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring">
@@ -156,13 +156,13 @@ export function AdminAppShell({
           </div>
         </header>
 
-        <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
+        <div className="flex flex-1 flex-col gap-6 p-4 md:p-6 min-w-0">
           <div>
             <h1 className="text-2xl font-black tracking-tight text-foreground">
               {current.title}
             </h1>
             <p className="text-sm text-muted-foreground">
-              Rushab Industries factory quality control
+              Material inward, bin tracking, and issue management
             </p>
           </div>
           {children}
@@ -172,9 +172,9 @@ export function AdminAppShell({
   )
 }
 
-export function SectionCard({ title, description, children, action }) {
+export function StoreSectionCard({ title, description, children, action }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+    <div className="overflow-hidden rounded-xl border border-border bg-card/90 shadow-sm backdrop-blur-sm">
       <div className="flex flex-col gap-3 border-b border-border bg-muted/40 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-bold text-foreground">{title}</h2>

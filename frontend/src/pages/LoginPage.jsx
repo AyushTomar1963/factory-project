@@ -33,6 +33,9 @@ export function LoginPage({ onLogin, authError, isAuthenticating }) {
     if (role === "admin") {
       setUsername("admin")
       setPassword("admin123")
+    } else if (role === "store") {
+      setUsername("store")
+      setPassword("store123")
     } else {
       setUsername("worker")
       setPassword("worker123")
@@ -40,8 +43,8 @@ export function LoginPage({ onLogin, authError, isAuthenticating }) {
   }
 
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center p-6">
-      <div className="flex w-full max-w-sm flex-col gap-6">
+    <div className="flex min-h-svh flex-col items-center justify-center overflow-x-hidden p-4 sm:p-6">
+      <div className="flex w-full min-w-0 max-w-sm flex-col gap-6">
         <div className="flex flex-col items-center gap-2 text-center">
           <BrandLogo size="lg" />
           <div className="flex items-center gap-2 font-semibold text-foreground">
@@ -86,7 +89,7 @@ export function LoginPage({ onLogin, authError, isAuthenticating }) {
                     <button
                       type="button"
                       onClick={() => setShowPassword((prev) => !prev)}
-                      className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      className="absolute top-1/2 right-1 flex size-11 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground active:scale-95"
                       aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? (
@@ -119,11 +122,11 @@ export function LoginPage({ onLogin, authError, isAuthenticating }) {
         {DEV_HINT && (
           <div className="rounded-lg border border-dashed border-border bg-card p-3 text-center">
             <p className="mb-2 text-xs text-muted-foreground">Local demo accounts</p>
-            <div className="flex justify-center gap-2">
+            <div className="flex flex-wrap justify-center gap-2">
               <button
                 type="button"
                 onClick={() => fillDemo("admin")}
-                className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-50"
+                className="inline-flex min-h-11 items-center justify-center gap-1 rounded-md px-3 text-xs font-semibold text-brand-700 hover:bg-brand-50 active:scale-[0.98]"
               >
                 <User className="size-3.5" />
                 Admin
@@ -131,10 +134,18 @@ export function LoginPage({ onLogin, authError, isAuthenticating }) {
               <button
                 type="button"
                 onClick={() => fillDemo("worker")}
-                className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-50"
+                className="inline-flex min-h-11 items-center justify-center gap-1 rounded-md px-3 text-xs font-semibold text-brand-700 hover:bg-brand-50 active:scale-[0.98]"
               >
                 <User className="size-3.5" />
                 Worker
+              </button>
+              <button
+                type="button"
+                onClick={() => fillDemo("store")}
+                className="inline-flex min-h-11 items-center justify-center gap-1 rounded-md px-3 text-xs font-semibold text-brand-700 hover:bg-brand-50 active:scale-[0.98]"
+              >
+                <User className="size-3.5" />
+                Store
               </button>
             </div>
           </div>

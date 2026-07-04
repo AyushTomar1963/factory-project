@@ -24,15 +24,16 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import {
+  ScrollTable,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+  TableText,
+} from "@/components/ui/scroll-table"
 import { StatusBadge } from "../ui/StatusBadge"
 import { cn } from "@/lib/utils"
 
@@ -142,46 +143,58 @@ export function InspectionLogsTable({ logs }) {
         <CardDescription>{rows.length} records loaded</CardDescription>
       </CardHeader>
       <CardContent className="p-0">
-        <ScrollArea className="h-[min(28rem,60vh)]">
-          <Table>
-            <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="whitespace-nowrap">Time</TableHead>
-                <TableHead>Part</TableHead>
-                <TableHead>Stage</TableHead>
-                <TableHead>Supplier</TableHead>
-                <TableHead>Invoice</TableHead>
-                <TableHead>Lot</TableHead>
-                <TableHead>Freq%</TableHead>
-                <TableHead>Worker</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>AI category</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((log, idx) => (
-                <TableRow key={idx}>
-                  <TableCell className="whitespace-nowrap text-muted-foreground">
-                    {log.Timestamp || "N/A"}
-                  </TableCell>
-                  <TableCell className="font-semibold">{log["Part Name"] || "N/A"}</TableCell>
-                  <TableCell>{log.Stage || "N/A"}</TableCell>
-                  <TableCell>{log.Supplier || "-"}</TableCell>
-                  <TableCell className="font-mono text-xs">{log.Invoice_Number || "-"}</TableCell>
-                  <TableCell>{log.Lot_Quantity || "-"}</TableCell>
-                  <TableCell>
-                    {log.Checking_Frequency ? `${log.Checking_Frequency}%` : "-"}
-                  </TableCell>
-                  <TableCell>{log["Logged By"] || "Unknown"}</TableCell>
-                  <TableCell>
-                    <StatusBadge status={log.Status} />
-                  </TableCell>
-                  <TableCell className="font-medium">{log["AI Category"] || "-"}</TableCell>
+        <div className="max-h-[min(28rem,60vh)] overflow-y-auto">
+          <ScrollTable label="Recent inspection logs">
+            <Table className="min-w-[960px]">
+              <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="whitespace-nowrap">Time</TableHead>
+                  <TableHead className="whitespace-nowrap">Part</TableHead>
+                  <TableHead className="whitespace-nowrap">Stage</TableHead>
+                  <TableHead className="whitespace-nowrap">Supplier</TableHead>
+                  <TableHead className="whitespace-nowrap">Invoice</TableHead>
+                  <TableHead className="whitespace-nowrap">Lot</TableHead>
+                  <TableHead className="whitespace-nowrap">Freq%</TableHead>
+                  <TableHead className="whitespace-nowrap">Worker</TableHead>
+                  <TableHead className="whitespace-nowrap">Status</TableHead>
+                  <TableHead className="whitespace-nowrap">AI category</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </ScrollArea>
+              </TableHeader>
+              <TableBody>
+                {rows.map((log, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">
+                      {log.Timestamp || "N/A"}
+                    </TableCell>
+                    <TableCell>
+                      <TableText>{log["Part Name"] || "N/A"}</TableText>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">{log.Stage || "N/A"}</TableCell>
+                    <TableCell>
+                      <TableText>{log.Supplier || "-"}</TableText>
+                    </TableCell>
+                    <TableCell>
+                      <TableText mono>{log.Invoice_Number || "-"}</TableText>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">{log.Lot_Quantity || "-"}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {log.Checking_Frequency ? `${log.Checking_Frequency}%` : "-"}
+                    </TableCell>
+                    <TableCell>
+                      <TableText>{log["Logged By"] || "Unknown"}</TableText>
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={log.Status} />
+                    </TableCell>
+                    <TableCell>
+                      <TableText>{log["AI Category"] || "-"}</TableText>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollTable>
+        </div>
       </CardContent>
     </Card>
   )

@@ -7,6 +7,7 @@ from models import Base, User, Product, Supplier
 TEST_USERS = [
     {"username": "admin", "password": "admin123", "role": "admin"},
     {"username": "worker", "password": "worker123", "role": "worker"},
+    {"username": "store", "password": "store123", "role": "store_keeper"},
 ]
 
 TEST_SUPPLIERS = [

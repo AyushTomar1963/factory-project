@@ -48,6 +48,8 @@ export function useAuth() {
     ...auth,
     isAuthenticated: Boolean(auth.token),
     isAdmin: auth.role === "admin",
+    isStoreKeeper: auth.role === "store_keeper",
+    isWorker: auth.role === "worker",
     authError,
     isAuthenticating,
     login,

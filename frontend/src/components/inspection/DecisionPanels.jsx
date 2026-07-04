@@ -24,13 +24,13 @@ export function OverallDecision({ onPass, onHold, onFail, disabled }) {
   return (
     <div className="space-y-3">
       <p className="text-center text-sm font-bold text-gray-600">Overall decision</p>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Button
           variant="pass"
           size="lg"
           disabled={disabled}
           onClick={onPass}
-          className="flex flex-col gap-1 py-4"
+          className="min-h-14 w-full flex-col gap-1 py-4"
         >
           <CircleCheck className="size-5" />
           PASS
@@ -40,7 +40,7 @@ export function OverallDecision({ onPass, onHold, onFail, disabled }) {
           size="lg"
           disabled={disabled}
           onClick={onHold}
-          className="flex flex-col gap-1 py-4"
+          className="min-h-14 w-full flex-col gap-1 py-4"
         >
           <AlertTriangle className="size-5" />
           HOLD
@@ -50,7 +50,7 @@ export function OverallDecision({ onPass, onHold, onFail, disabled }) {
           size="lg"
           disabled={disabled}
           onClick={() => setFailOpen(true)}
-          className="flex flex-col gap-1 py-4"
+          className="min-h-14 w-full flex-col gap-1 py-4"
         >
           <CircleX className="size-5" />
           FAIL
