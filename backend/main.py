@@ -38,11 +38,29 @@ async def lifespan(app: FastAPI):
 
     if user_count == 0:
         print("No users in database — seeding test accounts...")
-        from seed_test_data import seed
-
-        seed()
     else:
-        print("Database ready — users already exist")
+        print("Database ready — ensuring default test accounts exist...")
+
+    from seed_test_data import seed
+    from store_service import sync_store_from_inspections
+
+    seed()
+
+    db = SessionLocal()
+    try:
+        sync_result = sync_store_from_inspections(db, commit=True)
+        if sync_result["synced_lots"]:
+            print(
+                "Synced IQC lots to store bins: "
+                f"{sync_result['synced_lots']} lots, "
+                f"{sync_result['bin_items_created']} bin items"
+            )
+        elif sync_result["pending_before"]:
+            print("IQC store sync pending but no lots were created")
+        else:
+            print("Store bins are in sync with IQC logs")
+    finally:
+        db.close()
 
     yield
 

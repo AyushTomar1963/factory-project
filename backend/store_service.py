@@ -22,28 +22,67 @@ STATUS_TO_BIN = {
 
 RATING_TO_BIN = {
     "GREEN": "OK",
+    "GO": "OK",
+    "PASS": "OK",
     "RED": "REJECTED",
+    "FAIL": "REJECTED",
+    "REJECT": "REJECTED",
+    "NO GO": "REJECTED",
+    "NOGO": "REJECTED",
     "YELLOW": "DOUBTFUL",
+    "HOLD": "DOUBTFUL",
+    "DOUBTFUL": "DOUBTFUL",
+    "MARGINAL": "DOUBTFUL",
 }
+
+
+def _normalize_lot_quantity(raw_quantity, overall_status: str) -> int:
+    """Ensure every finalized IQC lot has a positive quantity for store routing."""
+    try:
+        quantity = int(raw_quantity)
+    except (TypeError, ValueError):
+        quantity = 0
+    if quantity > 0:
+        return quantity
+    return 1 if overall_status else 0
+
+
+def _rating_bin(rating) -> str | None:
+    if rating is None:
+        return None
+    normalized = str(rating).strip().upper()
+    if not normalized:
+        return None
+    return RATING_TO_BIN.get(normalized)
 
 
 def _allocate_quantities(lot_quantity: int, measured_values: dict, overall_status: str) -> dict:
     """Split lot quantity across OK / REJECTED / DOUBTFUL bins."""
+    lot_quantity = _normalize_lot_quantity(lot_quantity, overall_status)
     if lot_quantity <= 0:
         return {"OK": 0, "REJECTED": 0, "DOUBTFUL": 0}
 
     counts = {"OK": 0, "REJECTED": 0, "DOUBTFUL": 0}
     if measured_values:
         for rating in measured_values.values():
-            bin_type = RATING_TO_BIN.get(str(rating).upper())
+            bin_type = _rating_bin(rating)
             if bin_type:
                 counts[bin_type] += 1
 
     total_rated = sum(counts.values())
     if total_rated == 0:
-        bin_type = STATUS_TO_BIN.get(overall_status.upper(), "OK")
+        bin_type = STATUS_TO_BIN.get(str(overall_status or "").upper(), "OK")
         counts[bin_type] = lot_quantity
         return counts
+
+    distinct_bins = {bin_type for bin_type, count in counts.items() if count > 0}
+    if len(distinct_bins) == 1:
+        target_bin = next(iter(distinct_bins))
+        return {
+            "OK": lot_quantity if target_bin == "OK" else 0,
+            "REJECTED": lot_quantity if target_bin == "REJECTED" else 0,
+            "DOUBTFUL": lot_quantity if target_bin == "DOUBTFUL" else 0,
+        }
 
     allocated = {}
     remainder = lot_quantity
@@ -60,17 +99,24 @@ def _allocate_quantities(lot_quantity: int, measured_values: dict, overall_statu
 
 def create_store_bins_from_inspection(db: Session, log: InspectionLog) -> IqcLot:
     """Create IQC lot + store bin rows in the same transaction as inspection finalize."""
-    lot_quantity = log.lot_quantity or 0
+    existing = (
+        db.query(IqcLot).filter(IqcLot.inspection_log_id == log.id).first()
+    )
+    if existing:
+        return existing
+
+    lot_quantity = _normalize_lot_quantity(log.lot_quantity, log.status)
     lot_date = log.timestamp or datetime.now(timezone.utc)
+    part_no = (log.part_number or "UNKNOWN").strip().upper()
 
     iqc_lot = IqcLot(
         inspection_log_id=log.id,
-        part_no=log.part_number,
-        supplier=log.supplier or "N/A",
+        part_no=part_no,
+        supplier=(log.supplier or "N/A").strip(),
         lot_quantity=lot_quantity,
-        invoice_number=log.invoice_number,
+        invoice_number=(log.invoice_number or "N/A").strip(),
         lot_date=lot_date,
-        overall_status=log.status,
+        overall_status=log.status or "GREEN",
     )
     db.add(iqc_lot)
     db.flush()
@@ -87,8 +133,8 @@ def create_store_bins_from_inspection(db: Session, log: InspectionLog) -> IqcLot
             StoreBinItem(
                 iqc_lot_id=iqc_lot.id,
                 bin_type=bin_type,
-                part_no=log.part_number,
-                supplier=log.supplier or "N/A",
+                part_no=part_no,
+                supplier=(log.supplier or "N/A").strip(),
                 quantity=qty,
                 lot_date=lot_date,
                 status="PENDING",
@@ -96,6 +142,68 @@ def create_store_bins_from_inspection(db: Session, log: InspectionLog) -> IqcLot
         )
 
     return iqc_lot
+
+
+def sync_store_from_inspections(db: Session, commit: bool = True) -> dict:
+    """Backfill store bins for IQC logs finalized before store integration."""
+    pending_logs = (
+        db.query(InspectionLog)
+        .outerjoin(IqcLot, IqcLot.inspection_log_id == InspectionLog.id)
+        .filter(IqcLot.id.is_(None))
+        .order_by(InspectionLog.id.asc())
+        .all()
+    )
+
+    synced = 0
+    bin_items_created = 0
+    for log in pending_logs:
+        before = db.query(StoreBinItem).count()
+        create_store_bins_from_inspection(db, log)
+        db.flush()
+        after = db.query(StoreBinItem).count()
+        synced += 1
+        bin_items_created += max(after - before, 0)
+
+    if commit and synced:
+        db.commit()
+
+    return {
+        "synced_lots": synced,
+        "bin_items_created": bin_items_created,
+        "pending_before": len(pending_logs),
+    }
+
+
+def get_store_summary(db: Session) -> dict:
+    """Counts for store dashboard and IQC linkage health."""
+    pending_iqc = (
+        db.query(InspectionLog)
+        .outerjoin(IqcLot, IqcLot.inspection_log_id == InspectionLog.id)
+        .filter(IqcLot.id.is_(None))
+        .count()
+    )
+    totals = {"OK": 0, "REJECTED": 0, "DOUBTFUL": 0}
+    pending_inward = {"OK": 0, "REJECTED": 0, "DOUBTFUL": 0}
+    for bin_type in BIN_TYPES:
+        totals[bin_type] = (
+            db.query(StoreBinItem).filter(StoreBinItem.bin_type == bin_type).count()
+        )
+        pending_inward[bin_type] = (
+            db.query(StoreBinItem)
+            .filter(
+                StoreBinItem.bin_type == bin_type,
+                StoreBinItem.status == "PENDING",
+            )
+            .count()
+        )
+
+    return {
+        "iqc_logs_total": db.query(InspectionLog).count(),
+        "iqc_lots_total": db.query(IqcLot).count(),
+        "iqc_pending_sync": pending_iqc,
+        "bin_totals": totals,
+        "bin_pending_inward": pending_inward,
+    }
 
 
 def next_document_number(db: Session, doc_type: str, prefix: str) -> str:

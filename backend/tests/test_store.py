@@ -7,8 +7,13 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from models import Base, InspectionLog, StoreBinItem, User
-from store_service import create_grn_from_bin, create_store_bins_from_inspection
+from models import Base, InspectionLog, IqcLot, StoreBinItem, User
+from store_service import (
+    create_grn_from_bin,
+    create_store_bins_from_inspection,
+    sync_store_from_inspections,
+    _allocate_quantities,
+)
 
 
 @pytest.fixture()
@@ -89,7 +94,8 @@ def test_grn_numbers_are_unique_under_concurrent_inward(db_session):
         session.flush()
         ok_bin = (
             session.query(StoreBinItem)
-            .filter(StoreBinItem.iqc_lot_id == log.id, StoreBinItem.bin_type == "OK")
+            .join(IqcLot, IqcLot.id == StoreBinItem.iqc_lot_id)
+            .filter(IqcLot.inspection_log_id == log.id, StoreBinItem.bin_type == "OK")
             .first()
         )
         ok_item_ids.append(ok_bin.id)
@@ -128,3 +134,49 @@ def test_grn_numbers_are_unique_under_concurrent_inward(db_session):
     assert not errors, errors
     assert len(grn_numbers) == len(set(grn_numbers))
     assert len(grn_numbers) == len(ok_item_ids)
+
+
+def test_sync_backfills_existing_iqc_logs(db_session):
+    session, _engine, _path = db_session
+    logs = []
+    for idx in range(4):
+        logs.append(_make_inspection_log(session, lot_quantity=20 + idx, part_suffix=str(idx)))
+    session.commit()
+
+    result = sync_store_from_inspections(session, commit=True)
+    assert result["synced_lots"] == 4
+    assert result["bin_items_created"] >= 4
+
+    lots = session.query(IqcLot).count()
+    bins = session.query(StoreBinItem).count()
+    assert lots == 4
+    assert bins >= 4
+
+    repeat = sync_store_from_inspections(session, commit=True)
+    assert repeat["synced_lots"] == 0
+    assert session.query(IqcLot).count() == 4
+
+
+def test_unanimous_ratings_route_whole_lot_to_one_bin():
+    allocated = _allocate_quantities(
+        100,
+        {"OD": "GREEN", "ID": "GREEN", "Length": "GREEN"},
+        "GREEN",
+    )
+    assert allocated == {"OK": 100, "REJECTED": 0, "DOUBTFUL": 0}
+
+
+def test_mixed_ratings_split_lot_proportionally():
+    allocated = _allocate_quantities(
+        100,
+        {"OD": "GREEN", "ID": "RED"},
+        "GREEN",
+    )
+    assert allocated["OK"] == 50
+    assert allocated["REJECTED"] == 50
+    assert allocated["DOUBTFUL"] == 0
+
+
+def test_missing_lot_quantity_defaults_to_one():
+    allocated = _allocate_quantities(None, {"OD": "GREEN"}, "GREEN")
+    assert allocated["OK"] == 1

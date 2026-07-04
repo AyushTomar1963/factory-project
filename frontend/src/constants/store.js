@@ -10,7 +10,7 @@ export function getStoreTab(id) {
 }
 
 export const BIN_TABS = [
-  { id: "ok", label: "OK", slug: "ok" },
-  { id: "rejected", label: "Rejected", slug: "rejected" },
-  { id: "doubtful", label: "Doubtful", slug: "doubtful" },
+  { id: "ok", label: "OK", slug: "ok", binType: "OK" },
+  { id: "rejected", label: "Rejected", slug: "rejected", binType: "REJECTED" },
+  { id: "doubtful", label: "Doubtful", slug: "doubtful", binType: "DOUBTFUL" },
 ]

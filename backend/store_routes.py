@@ -11,8 +11,10 @@ from models import Grn, MaterialIssue, StoreBinItem
 from store_service import (
     create_grn_from_bin,
     create_material_issue,
+    get_store_summary,
     remaining_grn_quantity,
     serialize_bin_item,
+    sync_store_from_inspections,
 )
 
 router = APIRouter(prefix="/api/store", tags=["store"])
@@ -34,6 +36,27 @@ class IssueRequest(BaseModel):
     quantity_issued: int = Field(gt=0)
     issued_to: str = Field(min_length=1)
     remarks: Optional[str] = None
+
+
+@router.get("/summary")
+def store_summary(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_store_or_admin),
+):
+    return get_store_summary(db)
+
+
+@router.post("/sync-iqc")
+def sync_iqc_to_store(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_store_or_admin),
+):
+    try:
+        result = sync_store_from_inspections(db, commit=True)
+        return {"message": "IQC lots synced to store bins", **result}
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @router.get("/bins/{bin_slug}")

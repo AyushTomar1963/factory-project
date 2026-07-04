@@ -4,6 +4,14 @@ export function fetchStoreBins(token, binSlug) {
   return apiFetch(`/api/store/bins/${binSlug}`, { token })
 }
 
+export function fetchStoreSummary(token) {
+  return apiFetch("/api/store/summary", { token })
+}
+
+export function syncIqcToStore(token) {
+  return apiFetch("/api/store/sync-iqc", { token, method: "POST" })
+}
+
 export function fetchBinItem(token, binItemId) {
   return apiFetch(`/api/store/bin/${binItemId}`, { token })
 }
