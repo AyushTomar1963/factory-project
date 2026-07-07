@@ -5,11 +5,12 @@ from typing import Optional
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from database import get_db
 from deps import get_current_user, require_admin, require_store_or_admin
-from models import Grn, InspectionLog, MaterialIssue, StoreBinItem
+from models import BufferConfig, Grn, InspectionLog, MaterialIssue, StoreBinItem
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
@@ -105,6 +106,131 @@ def _fetch_store_report(db, start_date, end_date, part_no):
     return {"rows": rows, "summary": list(summary.values()), "total_bin_items": len(rows)}
 
 
+def _fetch_issue_report(db, start_date, end_date, part_no):
+    query = db.query(MaterialIssue)
+    start = _parse_date(start_date)
+    end = _parse_date(end_date)
+    if start:
+        query = query.filter(MaterialIssue.created_at >= start)
+    if end:
+        query = query.filter(MaterialIssue.created_at <= _end_of_day(end))
+    if part_no:
+        query = query.filter(MaterialIssue.part_no.ilike(f"%{part_no.strip()}%"))
+
+    issues = query.order_by(MaterialIssue.created_at.desc()).all()
+    rows = []
+    summary = {}
+    total_issued = 0
+
+    for issue in issues:
+        qty = issue.quantity_issued or 0
+        total_issued += qty
+        row = {
+            "issue_no": issue.issue_no,
+            "grn_no": issue.grn.grn_no if issue.grn else None,
+            "part_no": issue.part_no,
+            "quantity_issued": qty,
+            "issued_to": issue.issued_to,
+            "remarks": issue.remarks or "",
+            "date": issue.created_at.date().isoformat() if issue.created_at else None,
+        }
+        rows.append(row)
+        key = row["part_no"]
+        if key not in summary:
+            summary[key] = {"part_no": key, "issue_count": 0, "total_issued": 0}
+        summary[key]["issue_count"] += 1
+        summary[key]["total_issued"] += qty
+
+    return {
+        "rows": rows,
+        "summary": list(summary.values()),
+        "total_issues": len(rows),
+        "total_issued": total_issued,
+    }
+
+
+def _buffer_penetration(min_buffer, max_buffer, current_stock):
+    """Return (penetration_pct, status, action) for one material line.
+
+    Penetration % = ((Max - Current) / (Max - Min)) * 100
+    Green 0-33 | Yellow 34-66 | Red >66 or below minimum buffer.
+    """
+    span = (max_buffer or 0) - (min_buffer or 0)
+    if span <= 0:
+        penetration = 0.0 if current_stock >= (max_buffer or 0) else 100.0
+    else:
+        penetration = ((max_buffer - current_stock) / span) * 100
+
+    penetration = round(penetration, 1)
+    below_minimum = current_stock <= (min_buffer or 0)
+
+    if below_minimum or penetration > 66:
+        status, action = "Red", "Immediate replenishment"
+    elif penetration >= 34:
+        status, action = "Yellow", "Monitor"
+    else:
+        status, action = "Green", "No action"
+
+    return penetration, status, action
+
+
+def _fetch_bpr_report(db, warehouse, part_no):
+    inwarded = dict(
+        db.query(Grn.part_no, func.coalesce(func.sum(Grn.quantity), 0))
+        .group_by(Grn.part_no)
+        .all()
+    )
+    issued = dict(
+        db.query(
+            MaterialIssue.part_no,
+            func.coalesce(func.sum(MaterialIssue.quantity_issued), 0),
+        )
+        .group_by(MaterialIssue.part_no)
+        .all()
+    )
+
+    query = db.query(BufferConfig)
+    if warehouse:
+        query = query.filter(BufferConfig.warehouse == warehouse.strip())
+    if part_no:
+        query = query.filter(BufferConfig.material_code.ilike(f"%{part_no.strip()}%"))
+    configs = query.order_by(BufferConfig.material_code.asc()).all()
+
+    rows = []
+    counts = {"Green": 0, "Yellow": 0, "Red": 0}
+    for cfg in configs:
+        current_stock = int(inwarded.get(cfg.material_code, 0) or 0) - int(
+            issued.get(cfg.material_code, 0) or 0
+        )
+        penetration, status, action = _buffer_penetration(
+            cfg.min_buffer, cfg.max_buffer, current_stock
+        )
+        counts[status] += 1
+        rows.append(
+            {
+                "material_code": cfg.material_code,
+                "material_description": cfg.material_description or "",
+                "warehouse": cfg.warehouse,
+                "min_buffer": cfg.min_buffer,
+                "max_buffer": cfg.max_buffer,
+                "current_stock": current_stock,
+                "penetration_pct": penetration,
+                "status": status,
+                "action_required": action,
+            }
+        )
+
+    return {
+        "rows": rows,
+        "summary": [
+            {"status": status, "material_count": count}
+            for status, count in counts.items()
+        ],
+        "total_materials": len(rows),
+        "status_counts": counts,
+    }
+
+
 @router.get("/iqc")
 def iqc_report(
     db: Session = Depends(get_db),
@@ -127,28 +253,84 @@ def store_report(
     return _fetch_store_report(db, start_date, end_date, part_no)
 
 
+@router.get("/issue")
+def issue_report(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_store_or_admin),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    part_no: Optional[str] = Query(None),
+):
+    return _fetch_issue_report(db, start_date, end_date, part_no)
+
+
+@router.get("/bpr")
+def bpr_report(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_store_or_admin),
+    warehouse: Optional[str] = Query(None),
+    part_no: Optional[str] = Query(None),
+):
+    return _fetch_bpr_report(db, warehouse, part_no)
+
+
+_EXPORT_COLUMNS = {
+    "iqc": ["part_no", "date", "failure_count"],
+    "store": ["part_no", "date", "failure_count"],
+    "issue": [
+        "issue_no",
+        "grn_no",
+        "part_no",
+        "quantity_issued",
+        "issued_to",
+        "remarks",
+        "date",
+    ],
+    "bpr": [
+        "material_code",
+        "material_description",
+        "warehouse",
+        "min_buffer",
+        "max_buffer",
+        "current_stock",
+        "penetration_pct",
+        "status",
+        "action_required",
+    ],
+}
+
+
 @router.get("/export")
 def export_report(
     db: Session = Depends(get_db),
     current_user=Depends(require_store_or_admin),
-    type: str = Query(..., pattern="^(iqc|store)$"),
+    type: str = Query(..., pattern="^(iqc|store|issue|bpr)$"),
     format: str = Query("csv", pattern="^(csv|xlsx)$"),
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     part_no: Optional[str] = Query(None),
+    warehouse: Optional[str] = Query(None),
 ):
     if type == "iqc":
         data = _fetch_iqc_report(db, start_date, end_date, part_no)
         sheet_rows = data["summary"]
         filename_base = "iqc_report"
-    else:
+    elif type == "store":
         data = _fetch_store_report(db, start_date, end_date, part_no)
         sheet_rows = data["summary"]
         filename_base = "store_report"
+    elif type == "issue":
+        data = _fetch_issue_report(db, start_date, end_date, part_no)
+        sheet_rows = data["rows"]
+        filename_base = "issue_report"
+    else:
+        data = _fetch_bpr_report(db, warehouse, part_no)
+        sheet_rows = data["rows"]
+        filename_base = "buffer_penetration_report"
 
     df = pd.DataFrame(sheet_rows)
     if df.empty:
-        df = pd.DataFrame(columns=["part_no", "date", "failure_count"])
+        df = pd.DataFrame(columns=_EXPORT_COLUMNS[type])
 
     buffer = io.BytesIO()
     if format == "xlsx":

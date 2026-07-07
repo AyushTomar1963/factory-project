@@ -149,3 +149,16 @@ class DocumentSequence(Base):
     last_number = Column(Integer, nullable=False, default=0)
 
     __table_args__ = (UniqueConstraint("doc_type", "year", name="uq_doc_seq_type_year"),)
+
+
+class BufferConfig(Base):
+    """Min/max buffer levels per material for the Buffer Penetration Report."""
+    __tablename__ = "buffer_configs"
+    id = Column(Integer, primary_key=True, index=True)
+    material_code = Column(String(100), unique=True, nullable=False, index=True)
+    material_description = Column(String(200))
+    warehouse = Column(String(50), nullable=False, default="WH-01", index=True)
+    min_buffer = Column(Integer, nullable=False, default=0)
+    max_buffer = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

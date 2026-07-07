@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
 from deps import require_store_or_admin
-from models import Grn, MaterialIssue, StoreBinItem
+from models import BufferConfig, Grn, MaterialIssue, StoreBinItem
 from store_service import (
     create_grn_from_bin,
     create_material_issue,
@@ -38,6 +38,14 @@ class IssueRequest(BaseModel):
     remarks: Optional[str] = None
 
 
+class BufferConfigRequest(BaseModel):
+    material_code: str = Field(min_length=1)
+    material_description: Optional[str] = None
+    warehouse: str = Field(default="WH-01", min_length=1)
+    min_buffer: int = Field(ge=0)
+    max_buffer: int = Field(ge=0)
+
+
 @router.get("/summary")
 def store_summary(
     db: Session = Depends(get_db),
@@ -57,6 +65,70 @@ def sync_iqc_to_store(
     except Exception as exc:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+def _serialize_buffer(cfg: BufferConfig) -> dict:
+    return {
+        "id": cfg.id,
+        "material_code": cfg.material_code,
+        "material_description": cfg.material_description or "",
+        "warehouse": cfg.warehouse,
+        "min_buffer": cfg.min_buffer,
+        "max_buffer": cfg.max_buffer,
+    }
+
+
+@router.get("/buffers")
+def list_buffers(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_store_or_admin),
+):
+    configs = db.query(BufferConfig).order_by(BufferConfig.material_code.asc()).all()
+    return {"buffers": [_serialize_buffer(cfg) for cfg in configs]}
+
+
+@router.post("/buffers")
+def upsert_buffer(
+    body: BufferConfigRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_store_or_admin),
+):
+    if body.max_buffer < body.min_buffer:
+        raise HTTPException(
+            status_code=400, detail="Max buffer must be greater than or equal to min buffer"
+        )
+
+    material_code = body.material_code.strip().upper()
+    cfg = (
+        db.query(BufferConfig)
+        .filter(BufferConfig.material_code == material_code)
+        .first()
+    )
+    if cfg is None:
+        cfg = BufferConfig(material_code=material_code)
+        db.add(cfg)
+
+    cfg.material_description = (body.material_description or "").strip() or None
+    cfg.warehouse = body.warehouse.strip()
+    cfg.min_buffer = body.min_buffer
+    cfg.max_buffer = body.max_buffer
+    db.commit()
+    db.refresh(cfg)
+    return {"message": "Buffer configuration saved", "buffer": _serialize_buffer(cfg)}
+
+
+@router.delete("/buffers/{buffer_id}")
+def delete_buffer(
+    buffer_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_store_or_admin),
+):
+    cfg = db.query(BufferConfig).filter(BufferConfig.id == buffer_id).first()
+    if cfg is None:
+        raise HTTPException(status_code=404, detail="Buffer configuration not found")
+    db.delete(cfg)
+    db.commit()
+    return {"message": "Buffer configuration deleted"}
 
 
 @router.get("/bins/{bin_slug}")

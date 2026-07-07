@@ -18,6 +18,24 @@ export async function fetchStoreReport(token, params = {}) {
   return response.json()
 }
 
+export async function fetchIssueReport(token, params = {}) {
+  const query = new URLSearchParams(params).toString()
+  const response = await fetch(`${API_BASE}/api/reports/issue?${query}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!response.ok) throw new Error("Failed to load issue report")
+  return response.json()
+}
+
+export async function fetchBprReport(token, params = {}) {
+  const query = new URLSearchParams(params).toString()
+  const response = await fetch(`${API_BASE}/api/reports/bpr?${query}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!response.ok) throw new Error("Failed to load buffer penetration report")
+  return response.json()
+}
+
 export async function exportReport(token, { type, format, ...filters }) {
   const query = new URLSearchParams({ type, format, ...filters }).toString()
   const response = await fetch(`${API_BASE}/api/reports/export?${query}`, {

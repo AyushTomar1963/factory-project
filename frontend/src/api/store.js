@@ -32,3 +32,15 @@ export function fetchGrns(token, partNo) {
 export function submitIssue(token, body) {
   return apiFetch("/api/store/issue", { token, method: "POST", body })
 }
+
+export function fetchBuffers(token) {
+  return apiFetch("/api/store/buffers", { token })
+}
+
+export function saveBuffer(token, body) {
+  return apiFetch("/api/store/buffers", { token, method: "POST", body })
+}
+
+export function deleteBuffer(token, bufferId) {
+  return apiFetch(`/api/store/buffers/${bufferId}`, { token, method: "DELETE" })
+}

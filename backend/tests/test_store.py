@@ -180,3 +180,38 @@ def test_mixed_ratings_split_lot_proportionally():
 def test_missing_lot_quantity_defaults_to_one():
     allocated = _allocate_quantities(None, {"OD": "GREEN"}, "GREEN")
     assert allocated["OK"] == 1
+
+
+def test_buffer_penetration_healthy_is_green():
+    from reports_routes import _buffer_penetration
+
+    pct, status, action = _buffer_penetration(100, 500, 450)
+    assert pct == 12.5
+    assert status == "Green"
+    assert action == "No action"
+
+
+def test_buffer_penetration_mid_range_is_yellow():
+    from reports_routes import _buffer_penetration
+
+    pct, status, _action = _buffer_penetration(0, 100, 50)
+    assert pct == 50.0
+    assert status == "Yellow"
+
+
+def test_buffer_penetration_below_minimum_is_red():
+    from reports_routes import _buffer_penetration
+
+    pct, status, action = _buffer_penetration(150, 600, 120)
+    assert status == "Red"
+    assert action == "Immediate replenishment"
+    assert pct > 100
+
+
+def test_buffer_penetration_zero_span_uses_stock_threshold():
+    from reports_routes import _buffer_penetration
+
+    _pct, low_status, _ = _buffer_penetration(100, 100, 50)
+    _pct2, high_status, _ = _buffer_penetration(100, 100, 150)
+    assert low_status == "Red"
+    assert high_status == "Green"
