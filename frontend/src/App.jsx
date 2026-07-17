@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
+import { BrowserRouter, Navigate, Route, Routes, useNavigate } from "react-router-dom"
 import { AdminDashboardPage } from "./pages/AdminDashboardPage"
 import { LoginPage } from "./pages/LoginPage"
 import { StorePage } from "./pages/StorePage"
@@ -12,6 +12,66 @@ function HomeRedirect({ auth }) {
   return <WorkerPage token={auth.token} onLogout={auth.logout} />
 }
 
+function AppRoutes({ auth }) {
+  const navigate = useNavigate()
+
+  const handleLogin = async (username, password) => {
+    const success = await auth.login(username, password)
+    if (success) navigate("/", { replace: true })
+    return success
+  }
+
+  const handleLogout = () => {
+    auth.logout()
+    navigate("/", { replace: true })
+  }
+
+  if (!auth.isAuthenticated) {
+    return (
+      <LoginPage
+        onLogin={handleLogin}
+        authError={auth.authError}
+        isAuthenticating={auth.isAuthenticating}
+      />
+    )
+  }
+
+  return (
+    <Routes>
+      <Route
+        path="/store"
+        element={
+          auth.isStoreKeeper || auth.isAdmin ? (
+            <StorePage
+              token={auth.token}
+              username={auth.username}
+              onLogout={handleLogout}
+            />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          auth.isAdmin ? (
+            <AdminDashboardPage
+              token={auth.token}
+              username={auth.username}
+              onLogout={handleLogout}
+            />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      <Route path="/" element={<HomeRedirect auth={{ ...auth, logout: handleLogout }} />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
+}
+
 export default function App() {
   const auth = useAuth()
 
@@ -20,46 +80,7 @@ export default function App() {
       <div className="relative min-h-svh overflow-x-hidden">
         <AppBackground />
         <div className="relative z-10">
-          {!auth.isAuthenticated ? (
-            <LoginPage
-              onLogin={auth.login}
-              authError={auth.authError}
-              isAuthenticating={auth.isAuthenticating}
-            />
-          ) : (
-            <Routes>
-              <Route
-                path="/store"
-                element={
-                  auth.isStoreKeeper || auth.isAdmin ? (
-                    <StorePage
-                      token={auth.token}
-                      username={auth.username}
-                      onLogout={auth.logout}
-                    />
-                  ) : (
-                    <Navigate to="/" replace />
-                  )
-                }
-              />
-              <Route
-                path="/admin"
-                element={
-                  auth.isAdmin ? (
-                    <AdminDashboardPage
-                      token={auth.token}
-                      username={auth.username}
-                      onLogout={auth.logout}
-                    />
-                  ) : (
-                    <Navigate to="/" replace />
-                  )
-                }
-              />
-              <Route path="/" element={<HomeRedirect auth={auth} />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          )}
+          <AppRoutes auth={auth} />
         </div>
       </div>
     </BrowserRouter>
