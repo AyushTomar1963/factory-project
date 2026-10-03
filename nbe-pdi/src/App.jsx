@@ -1,7 +1,4 @@
 import { useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
-import { ArrowLeft, Printer } from "lucide-react"
-import { Button } from "../components/ui/qa-button"
 import {
   PDI_COMPANY,
   PDI_METADATA_ROWS,
@@ -9,8 +6,8 @@ import {
   PDI_SECTIONS,
   PDI_TITLE,
   pdiItemKey,
-} from "../constants/pdi"
-import "../components/pdi/pdi-form.css"
+} from "./pdi"
+import "./pdi-form.css"
 
 const PRINT_HOST_ID = "pdi-print-host"
 
@@ -67,8 +64,7 @@ function removePdiPrintHost() {
   document.getElementById(PRINT_HOST_ID)?.remove()
 }
 
-export function PdiReportPage({ onLogout }) {
-  const navigate = useNavigate()
+export default function App() {
   const [meta, setMeta] = useState(initialMeta)
   const [observations, setObservations] = useState({})
   const [remarks, setRemarks] = useState("")
@@ -87,32 +83,18 @@ export function PdiReportPage({ onLogout }) {
     }
   }, [])
 
-  const handlePrint = () => {
-    mountPdiPrintHost()
-    window.print()
-  }
-
   return (
-    <div className="min-h-svh px-3 py-4 sm:px-6 sm:py-6">
-      <div className="no-print mx-auto mb-4 flex max-w-6xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Button variant="muted" onClick={() => navigate("/")}>
-          <ArrowLeft className="size-4" />
-          Back
-        </Button>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button variant="primary" onClick={handlePrint}>
-            <Printer className="size-4" />
-            Print / Save PDF
-          </Button>
-          {onLogout && (
-            <Button variant="muted" onClick={onLogout}>
-              Sign out
-            </Button>
-          )}
-        </div>
+    <div className="pdi-page">
+      <div className="pdi-toolbar no-print">
+        <button type="button" className="pdi-print-button" onClick={() => {
+          mountPdiPrintHost()
+          window.print()
+        }}>
+          Print / Save PDF
+        </button>
       </div>
 
-      <article id="pdi-report" className="pdi-sheet mx-auto max-w-6xl">
+      <article id="pdi-report" className="pdi-sheet">
         <header className="pdi-brand">
           <img
             src="/nbe-logo.png"
@@ -201,26 +183,17 @@ export function PdiReportPage({ onLogout }) {
 
         <label className="pdi-remarks">
           <span>Remarks</span>
-          <textarea
-            value={remarks}
-            onChange={(event) => setRemarks(event.target.value)}
-          />
+          <textarea value={remarks} onChange={(event) => setRemarks(event.target.value)} />
         </label>
 
         <div className="pdi-signoff">
           <label className="pdi-sign">
             <span>Checked by</span>
-            <input
-              value={checkedBy}
-              onChange={(event) => setCheckedBy(event.target.value)}
-            />
+            <input value={checkedBy} onChange={(event) => setCheckedBy(event.target.value)} />
           </label>
           <label className="pdi-sign">
             <span>Approved by</span>
-            <input
-              value={approvedBy}
-              onChange={(event) => setApprovedBy(event.target.value)}
-            />
+            <input value={approvedBy} onChange={(event) => setApprovedBy(event.target.value)} />
           </label>
         </div>
       </article>

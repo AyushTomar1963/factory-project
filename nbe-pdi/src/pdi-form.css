@@ -1,4 +1,45 @@
+body {
+  margin: 0;
+  background: #eef3f8;
+  color: #111827;
+  font-family: Calibri, "Segoe UI", sans-serif;
+}
+
+.pdi-page {
+  min-height: 100vh;
+  padding: 1rem 0.75rem 2rem;
+}
+
+.pdi-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  max-width: 72rem;
+  margin: 0 auto 1rem;
+}
+
+.pdi-print-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.75rem;
+  padding: 0.55rem 1rem;
+  border: 0;
+  border-radius: 0.7rem;
+  background: #1f4e78;
+  color: #fff;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pdi-print-button:hover {
+  background: #163a5c;
+}
+
 .pdi-sheet {
+  max-width: 72rem;
+  margin: 0 auto;
   background: #fff;
   color: #111827;
   border: 1px solid #d1d5db;

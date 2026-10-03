@@ -1,6 +1,4 @@
-import { useNavigate } from "react-router-dom"
 import {
-  ClipboardCheck,
   LayoutDashboard,
   LogOut,
   Package,
@@ -59,7 +57,6 @@ export function AdminAppShell({
   onLogout,
   children,
 }) {
-  const navigate = useNavigate()
   const current = getAdminTab(activeTab)
   const initials = username?.slice(0, 2).toUpperCase() || "AD"
 
@@ -100,15 +97,6 @@ export function AdminAppShell({
                     </SidebarMenuItem>
                   )
                 })}
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => navigate("/pdi")}
-                    tooltip="PDI report"
-                  >
-                    <ClipboardCheck />
-                    <span>PDI report</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

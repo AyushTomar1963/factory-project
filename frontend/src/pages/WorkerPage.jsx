@@ -1,6 +1,4 @@
 import { useEffect } from "react"
-import { useNavigate } from "react-router-dom"
-import { ClipboardCheck } from "lucide-react"
 import { toast } from "sonner"
 import {
   DefectRemarkPanel,
@@ -18,12 +16,10 @@ import { PartLoader } from "../components/inspection/PartLoader"
 import { StageSelector } from "../components/inspection/StageSelector"
 import { PageHeader, WorkerShell } from "../components/layout/Shell"
 import { Panel } from "../components/ui/qa-card"
-import { Button } from "../components/ui/qa-button"
 import { Spinner } from "../components/ui/spinner"
 import { useInspection } from "../hooks/useInspection"
 
 export function WorkerPage({ token, onLogout }) {
-  const navigate = useNavigate()
   const inspection = useInspection(token)
 
   useEffect(() => {
@@ -63,16 +59,6 @@ export function WorkerPage({ token, onLogout }) {
       }
     >
       <Panel>
-        <Button
-          variant="primary"
-          size="block"
-          className="mb-6"
-          onClick={() => navigate("/pdi")}
-        >
-          <ClipboardCheck className="size-4" />
-          Pre-dispatch inspection
-        </Button>
-
         <InspectionStepper
           partNumber={inspection.partNumber}
           intakeSubmitted={inspection.intakeSubmitted}
