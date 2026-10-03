@@ -113,7 +113,12 @@ export function PdiReportPage({ onLogout }) {
       </div>
 
       <article id="pdi-report" className="pdi-sheet mx-auto max-w-6xl">
-        <header>
+        <header className="pdi-brand">
+          <img
+            src="/nbe-logo.png"
+            alt="New Bharat, NBE Motors Pvt. Ltd."
+            className="pdi-logo"
+          />
           <h1 className="pdi-company">{PDI_COMPANY}</h1>
           <p className="pdi-subtitle">{PDI_TITLE}</p>
         </header>
