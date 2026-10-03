@@ -53,11 +53,9 @@ function formatDate(value) {
 }
 
 export function InspectionReportDialog({ open, report, inspector, onClose, onNewInspection }) {
-  const [showLogo, setShowLogo] = useState(true)
-
-  useEffect(() => {
-    setShowLogo(true)
-  }, [report])
+  const logoKey = report?.report_id ?? ""
+  const [hiddenLogoKey, setHiddenLogoKey] = useState(null)
+  const showLogo = hiddenLogoKey !== logoKey
 
   useEffect(() => {
     if (!open || !report) {
@@ -113,7 +111,7 @@ export function InspectionReportDialog({ open, report, inspector, onClose, onNew
                 <img
                   src="/logo.jpg"
                   alt="Rushab Industries"
-                  onError={() => setShowLogo(false)}
+                  onError={() => setHiddenLogoKey(logoKey)}
                 />
               )}
               <div>
