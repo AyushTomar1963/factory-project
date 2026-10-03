@@ -1,202 +1,96 @@
-import { useEffect, useState } from "react"
-import {
-  PDI_COMPANY,
-  PDI_METADATA_ROWS,
-  PDI_OBSERVATIONS,
-  PDI_SECTIONS,
-  PDI_TITLE,
-  pdiItemKey,
-} from "./pdi"
-import "./pdi-form.css"
+import { BrowserRouter, Navigate, Route, Routes, useNavigate } from "react-router-dom"
+import { AdminDashboardPage } from "./pages/AdminDashboardPage"
+import { LoginPage } from "./pages/LoginPage"
+import { PdiPage } from "./pages/PdiPage"
+import { StorePage } from "./pages/StorePage"
+import { WorkerPage } from "./pages/WorkerPage"
+import { AppBackground } from "./components/effects/AppBackground"
+import { useAuth } from "./hooks/useAuth"
 
-const PRINT_HOST_ID = "pdi-print-host"
+function HomeRedirect({ auth }) {
+  if (auth.isStoreKeeper) return <Navigate to="/store" replace />
+  if (auth.isAdmin) return <Navigate to="/admin" replace />
+  return <WorkerPage token={auth.token} onLogout={auth.logout} />
+}
 
-function initialMeta() {
-  const meta = {}
-  for (const row of PDI_METADATA_ROWS) {
-    for (const field of row) meta[field.key] = field.defaultValue || ""
+function AppRoutes({ auth }) {
+  const navigate = useNavigate()
+
+  const handleLogin = async (username, password) => {
+    const success = await auth.login(username, password)
+    if (success) navigate("/", { replace: true })
+    return success
   }
-  return meta
-}
 
-function syncControlValues(root) {
-  root.querySelectorAll("input").forEach((input) => {
-    input.setAttribute("value", input.value)
-  })
-  root.querySelectorAll("textarea").forEach((textarea) => {
-    textarea.textContent = textarea.value
-  })
-  root.querySelectorAll("select").forEach((select) => {
-    Array.from(select.options).forEach((option) => {
-      if (option.value === select.value) option.setAttribute("selected", "")
-      else option.removeAttribute("selected")
-    })
-  })
-}
+  const handleLogout = () => {
+    auth.logout()
+    navigate("/", { replace: true })
+  }
 
-function mountPdiPrintHost() {
-  const source = document.getElementById("pdi-report")
-  if (!source) return
-
-  syncControlValues(source)
-  document.getElementById(PRINT_HOST_ID)?.remove()
-
-  const host = document.createElement("div")
-  host.id = PRINT_HOST_ID
-  host.setAttribute("aria-hidden", "true")
-  const clone = source.cloneNode(true)
-
-  clone.querySelectorAll("select").forEach((select) => {
-    const chosen = select.options[select.selectedIndex]
-    const value = document.createElement("span")
-    value.className = "pdi-observation-value"
-    if (chosen?.value === "OK") value.classList.add("is-ok")
-    if (chosen?.value === "NOT OK") value.classList.add("is-not-ok")
-    value.textContent = chosen?.value ? chosen.textContent : ""
-    select.replaceWith(value)
-  })
-
-  host.appendChild(clone)
-  document.body.appendChild(host)
-}
-
-function removePdiPrintHost() {
-  document.getElementById(PRINT_HOST_ID)?.remove()
+  return (
+    <Routes>
+      <Route path="/pdi" element={<PdiPage />} />
+      {!auth.isAuthenticated && (
+        <Route
+          path="*"
+          element={
+            <LoginPage
+              onLogin={handleLogin}
+              authError={auth.authError}
+              isAuthenticating={auth.isAuthenticating}
+            />
+          }
+        />
+      )}
+      {auth.isAuthenticated && (
+        <>
+      <Route
+        path="/store"
+        element={
+          auth.isStoreKeeper || auth.isAdmin ? (
+            <StorePage
+              token={auth.token}
+              username={auth.username}
+              onLogout={handleLogout}
+            />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          auth.isAdmin ? (
+            <AdminDashboardPage
+              token={auth.token}
+              username={auth.username}
+              onLogout={handleLogout}
+            />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      <Route path="/" element={<HomeRedirect auth={{ ...auth, logout: handleLogout }} />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+        </>
+      )}
+    </Routes>
+  )
 }
 
 export default function App() {
-  const [meta, setMeta] = useState(initialMeta)
-  const [observations, setObservations] = useState({})
-  const [remarks, setRemarks] = useState("")
-  const [checkedBy, setCheckedBy] = useState("")
-  const [approvedBy, setApprovedBy] = useState("")
-
-  useEffect(() => {
-    const onBeforePrint = () => mountPdiPrintHost()
-    const onAfterPrint = () => removePdiPrintHost()
-    window.addEventListener("beforeprint", onBeforePrint)
-    window.addEventListener("afterprint", onAfterPrint)
-    return () => {
-      window.removeEventListener("beforeprint", onBeforePrint)
-      window.removeEventListener("afterprint", onAfterPrint)
-      removePdiPrintHost()
-    }
-  }, [])
+  const auth = useAuth()
 
   return (
-    <div className="pdi-page">
-      <div className="pdi-toolbar no-print">
-        <button type="button" className="pdi-print-button" onClick={() => {
-          mountPdiPrintHost()
-          window.print()
-        }}>
-          Print / Save PDF
-        </button>
+    <BrowserRouter>
+      <div className="relative min-h-svh overflow-x-hidden">
+        <AppBackground />
+        <div className="relative z-10">
+          <AppRoutes auth={auth} />
+        </div>
       </div>
-
-      <article id="pdi-report" className="pdi-sheet">
-        <header className="pdi-brand">
-          <img
-            src="/nbe-logo.png"
-            alt="New Bharat, NBE Motors Pvt. Ltd."
-            className="pdi-logo"
-          />
-          <h1 className="pdi-company">{PDI_COMPANY}</h1>
-          <p className="pdi-subtitle">{PDI_TITLE}</p>
-        </header>
-
-        <div className="pdi-meta">
-          {PDI_METADATA_ROWS.flat().map((field) => (
-            <label key={field.key} className="pdi-field">
-              <span>{field.label}</span>
-              <input
-                value={meta[field.key]}
-                onChange={(event) =>
-                  setMeta((current) => ({ ...current, [field.key]: event.target.value }))
-                }
-              />
-            </label>
-          ))}
-        </div>
-
-        <div className="pdi-table-wrap">
-          <table className="pdi-table">
-            <thead>
-              <tr>
-                <th>SR NO</th>
-                <th>PARAMETER</th>
-                <th>SPECIFICATION</th>
-                <th>FREQ</th>
-                <th>INSPECTION METHOD</th>
-                <th>OBSERVATION</th>
-              </tr>
-            </thead>
-            <tbody>
-              {PDI_SECTIONS.map((section, sectionIndex) =>
-                section.items.map((item, itemIndex) => {
-                  const key = pdiItemKey(sectionIndex, itemIndex)
-                  const observation = observations[key] || ""
-                  return (
-                    <tr key={key}>
-                      {itemIndex === 0 && (
-                        <td className="pdi-section" rowSpan={section.items.length}>
-                          {section.title}
-                        </td>
-                      )}
-                      <td className="pdi-parameter">{item.parameter}</td>
-                      <td className="pdi-spec">{item.specification}</td>
-                      <td className="pdi-freq">{item.freq}</td>
-                      <td className="pdi-method">{item.method}</td>
-                      <td className="pdi-observation-cell">
-                        <select
-                          className={`pdi-observation${
-                            observation === "OK"
-                              ? " is-ok"
-                              : observation === "NOT OK"
-                                ? " is-not-ok"
-                                : ""
-                          }`}
-                          aria-label={`Observation for ${item.parameter}`}
-                          value={observation}
-                          onChange={(event) =>
-                            setObservations((current) => ({
-                              ...current,
-                              [key]: event.target.value,
-                            }))
-                          }
-                        >
-                          <option value="">Select</option>
-                          {PDI_OBSERVATIONS.map((choice) => (
-                            <option key={choice} value={choice}>
-                              {choice}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                    </tr>
-                  )
-                }),
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <label className="pdi-remarks">
-          <span>Remarks</span>
-          <textarea value={remarks} onChange={(event) => setRemarks(event.target.value)} />
-        </label>
-
-        <div className="pdi-signoff">
-          <label className="pdi-sign">
-            <span>Checked by</span>
-            <input value={checkedBy} onChange={(event) => setCheckedBy(event.target.value)} />
-          </label>
-          <label className="pdi-sign">
-            <span>Approved by</span>
-            <input value={approvedBy} onChange={(event) => setApprovedBy(event.target.value)} />
-          </label>
-        </div>
-      </article>
-    </div>
+    </BrowserRouter>
   )
 }
