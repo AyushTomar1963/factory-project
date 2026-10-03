@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes, useNavigate } from "react-route
 import { AdminDashboardPage } from "./pages/AdminDashboardPage"
 import { LoginPage } from "./pages/LoginPage"
 import { StorePage } from "./pages/StorePage"
+import { PdiReportPage } from "./pages/PdiReportPage"
 import { WorkerPage } from "./pages/WorkerPage"
 import { AppBackground } from "./components/effects/AppBackground"
 import { useAuth } from "./hooks/useAuth"
@@ -66,6 +67,7 @@ function AppRoutes({ auth }) {
           )
         }
       />
+      <Route path="/pdi" element={<PdiReportPage onLogout={handleLogout} />} />
       <Route path="/" element={<HomeRedirect auth={{ ...auth, logout: handleLogout }} />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

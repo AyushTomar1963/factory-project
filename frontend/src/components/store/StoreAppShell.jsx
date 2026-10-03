@@ -1,5 +1,7 @@
+import { useNavigate } from "react-router-dom"
 import {
   ArrowLeftRight,
+  ClipboardCheck,
   ClipboardList,
   LayoutGrid,
   LogOut,
@@ -56,6 +58,7 @@ export function StoreAppShell({
   onLogout,
   children,
 }) {
+  const navigate = useNavigate()
   const current = getStoreTab(activeTab)
   const initials = username?.slice(0, 2).toUpperCase() || "SK"
 
@@ -96,6 +99,15 @@ export function StoreAppShell({
                     </SidebarMenuItem>
                   )
                 })}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate("/pdi")}
+                    tooltip="PDI report"
+                  >
+                    <ClipboardCheck />
+                    <span>PDI report</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
