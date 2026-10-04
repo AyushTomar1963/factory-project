@@ -71,14 +71,14 @@ export function WorkerPage({ token, onLogout }) {
         </div>
         <nav
           aria-label="Inspection sections"
-          className="mx-auto grid w-full max-w-6xl grid-cols-2 gap-1 px-4 pt-3 pb-3"
+          className="mx-auto grid w-full max-w-sm grid-cols-2 gap-1 px-4 pt-3 pb-3"
         >
           <button
             type="button"
             aria-current={view === "qc" ? "page" : undefined}
             onClick={() => setView("qc")}
-            className={`min-h-11 rounded-lg px-3 text-sm font-bold ${
-              view === "qc" ? "bg-white text-brand-800" : "text-white hover:bg-white/10"
+            className={`min-h-11 rounded-lg px-3 text-center text-sm font-bold ${
+              view === "qc" ? "bg-white text-brand-800" : "bg-white/10 text-white hover:bg-white/20"
             }`}
           >
             QC station
@@ -87,8 +87,8 @@ export function WorkerPage({ token, onLogout }) {
             type="button"
             aria-current={view === "pdi" ? "page" : undefined}
             onClick={() => setView("pdi")}
-            className={`min-h-11 rounded-lg px-3 text-sm font-bold ${
-              view === "pdi" ? "bg-white text-brand-800" : "text-white hover:bg-white/10"
+            className={`min-h-11 rounded-lg px-3 text-center text-sm font-bold ${
+              view === "pdi" ? "bg-white text-brand-800" : "bg-white/10 text-white hover:bg-white/20"
             }`}
           >
             Pre-dispatch
