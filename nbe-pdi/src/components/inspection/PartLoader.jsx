@@ -2,6 +2,7 @@ import { useState } from "react"
 import {
   Camera,
   CheckCircle2,
+  ChevronLeft,
   RotateCcw,
   Search,
 } from "lucide-react"
@@ -134,7 +135,15 @@ export function PartLoader({
       </Button>
 
       <Dialog open={isScanning} onOpenChange={(open) => !open && onCancelScan()}>
-        <DialogContent className="max-w-md p-4 sm:max-w-lg" showCloseButton>
+        <DialogContent className="qr-scan-dialog max-w-md p-4 sm:max-w-lg" showCloseButton={false}>
+          <button
+            type="button"
+            onClick={onCancelScan}
+            className="inline-flex min-h-11 items-center gap-0.5 self-start text-sm font-bold text-brand-800"
+          >
+            <ChevronLeft className="size-5" />
+            Back
+          </button>
           <DialogHeader>
             <DialogTitle>Scan part QR code</DialogTitle>
             <DialogDescription>
@@ -151,7 +160,7 @@ export function PartLoader({
           )}
           <DialogFooter>
             <Button variant="muted" size="block" className="w-full" onClick={onCancelScan}>
-              Cancel scan
+              Back
             </Button>
           </DialogFooter>
         </DialogContent>

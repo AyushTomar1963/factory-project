@@ -1,5 +1,6 @@
 import {
   ClipboardCheck,
+  ChevronLeft,
   LayoutDashboard,
   LogOut,
   Package,
@@ -42,6 +43,7 @@ import {
 } from "@/components/ui/sidebar"
 import { BrandLogo } from "../layout/Shell"
 import { getAdminTab, ADMIN_TABS } from "../../constants/admin"
+import { returnToPrevious } from "../../hooks/useSection"
 import { useSidebar } from "@/components/ui/sidebar"
 
 const NAV_ICONS = {
@@ -134,9 +136,20 @@ export function AdminAppShell({
       </Sidebar>
 
       <SidebarInset className="min-w-0 bg-transparent">
-        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b border-border/60 bg-background/90 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/75">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
+        <header className="phone-top sticky top-0 z-20 flex min-h-14 shrink-0 items-center gap-2 border-b border-border/60 bg-background/90 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/75">
+          <SidebarTrigger className="-ml-1 min-h-11 min-w-11" />
+          {activeTab !== "dashboard" && (
+            <button
+              type="button"
+              onClick={() => returnToPrevious(() => onTabChange("dashboard"))}
+              className="inline-flex min-h-11 items-center gap-0.5 text-sm font-bold md:hidden"
+            >
+              <ChevronLeft className="size-5" />
+              Back
+            </button>
+          )}
+          <Separator orientation="vertical" className="mr-2 hidden h-4 md:block" />
+          <div className={activeTab === "dashboard" ? "min-w-0" : "hidden min-w-0 md:block"}>
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem className="hidden md:inline-flex">
@@ -154,6 +167,7 @@ export function AdminAppShell({
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
+          </div>
 
           <div className="ml-auto flex items-center gap-3">
             <div className="hidden text-right sm:block">

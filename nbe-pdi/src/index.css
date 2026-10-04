@@ -187,3 +187,19 @@ body {
     @apply w-full max-w-full justify-start overflow-x-auto [-webkit-overflow-scrolling:touch];
   }
 }
+
+.phone-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.phone-page {
+  padding-bottom: max(2rem, env(safe-area-inset-bottom));
+}
+
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}

@@ -1,4 +1,5 @@
 import { useEffect } from "react"
+import { ChevronLeft } from "lucide-react"
 import { toast } from "sonner"
 import {
   DefectRemarkPanel,
@@ -17,7 +18,7 @@ import { StageSelector } from "../components/inspection/StageSelector"
 import { Panel } from "../components/ui/qa-card"
 import { Spinner } from "../components/ui/spinner"
 import { useInspection } from "../hooks/useInspection"
-import { useSection } from "../hooks/useSection"
+import { returnToPrevious, useSection } from "../hooks/useSection"
 import { PdiPage } from "./PdiPage"
 
 export function WorkerPage({ token, onLogout }) {
@@ -51,16 +52,25 @@ export function WorkerPage({ token, onLogout }) {
 
   return (
     <div className="min-h-svh">
-      <header className="sticky top-0 z-30 border-b border-white/15 bg-brand-800/95 text-white backdrop-blur">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 pt-3">
-          <div className="min-w-0">
+      <header className="phone-top sticky top-0 z-30 border-b border-white/15 bg-brand-800/95 text-white backdrop-blur">
+        <div className="mx-auto flex w-full max-w-md items-center gap-2 px-3 pt-3">
+          {view === "pdi" ? (
+            <button
+              type="button"
+              onClick={() => returnToPrevious(() => setView("qc"))}
+              className="inline-flex min-h-11 shrink-0 items-center gap-0.5 rounded-lg pr-2 text-sm font-bold"
+            >
+              <ChevronLeft className="size-5" />
+              Back
+            </button>
+          ) : (
             <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-brand-100">
               Inspection
             </p>
-            <h1 className="truncate text-lg font-black">
-              {view === "pdi" ? "Pre-dispatch" : "QC station"}
-            </h1>
-          </div>
+          )}
+          <h1 className="min-w-0 flex-1 truncate text-lg font-black">
+            {view === "pdi" ? "Pre-dispatch" : "QC station"}
+          </h1>
           <button
             type="button"
             onClick={onLogout}
@@ -71,7 +81,7 @@ export function WorkerPage({ token, onLogout }) {
         </div>
         <nav
           aria-label="Inspection sections"
-          className="mx-auto grid w-full max-w-sm grid-cols-2 gap-1 px-4 pt-3 pb-3"
+          className="mx-auto grid w-full max-w-md grid-cols-2 gap-1 px-3 pt-3 pb-3"
         >
           <button
             type="button"
@@ -99,7 +109,7 @@ export function WorkerPage({ token, onLogout }) {
       {view === "pdi" ? (
         <PdiPage layout="framed" token={token} />
       ) : (
-        <div className="flex justify-center px-4 pt-4 pb-8">
+        <div className="phone-page mx-auto flex w-full max-w-md justify-center px-3 pt-4 pb-8">
       <Panel className="rounded-2xl border">
         <InspectionStepper
           partNumber={inspection.partNumber}

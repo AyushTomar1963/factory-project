@@ -1,3 +1,23 @@
+@media (max-width: 639px) {
+  .qr-scan-dialog {
+    top: 0 !important;
+    left: 0 !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: 100dvh !important;
+    max-height: none !important;
+    border-radius: 0 !important;
+    overflow-y: auto;
+    padding-top: max(0.75rem, env(safe-area-inset-top)) !important;
+    padding-bottom: max(1rem, env(safe-area-inset-bottom)) !important;
+  }
+
+  .qr-view {
+    min-height: 46dvh;
+  }
+}
+
 .qr-view {
   position: relative;
   width: 100%;

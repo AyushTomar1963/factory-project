@@ -15,3 +15,12 @@ export function useSection(key, ids, fallback) {
 
   return [active, setActive]
 }
+
+export function returnToPrevious(fallback) {
+  const index = window.history.state?.idx
+  if (typeof index === "number" && index > 0) {
+    window.history.back()
+    return
+  }
+  fallback()
+}

@@ -160,6 +160,101 @@ function LineField({ label, value, onChange, multiline = false }) {
   )
 }
 
+function observationClass(value) {
+  if (value === "OK") return "pdi-observation is-ok"
+  if (value === "NOT OK") return "pdi-observation is-not-ok"
+  return "pdi-observation"
+}
+
+function ObservationSelect({ label, value, onChange }) {
+  return (
+    <select
+      className={observationClass(value)}
+      aria-label={label}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    >
+      <option value="">Select</option>
+      {PDI_OBSERVATIONS.map((choice) => (
+        <option key={choice} value={choice}>
+          {choice}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+function PhoneCard({ entry, onField }) {
+  const { key, defaults, line, showSection, label } = entry
+  return (
+    <article className="pdi-phone-card">
+      {showSection && (
+        <label>
+          <span>Section</span>
+          <LineField
+            multiline
+            label={`Section ${line.section || label}`}
+            value={line.section}
+            onChange={(value) => onField(key, defaults, "section", value)}
+          />
+        </label>
+      )}
+      <label>
+        <span>Parameter</span>
+        <LineField
+          multiline
+          label={`Parameter for ${label}`}
+          value={line.parameter}
+          onChange={(value) => onField(key, defaults, "parameter", value)}
+        />
+      </label>
+      <label>
+        <span>Specification</span>
+        <LineField
+          multiline
+          label={`Specification for ${label}`}
+          value={line.specification}
+          onChange={(value) => onField(key, defaults, "specification", value)}
+        />
+      </label>
+      <label>
+        <span>Frequency</span>
+        <LineField
+          label={`Frequency for ${label}`}
+          value={line.freq}
+          onChange={(value) => onField(key, defaults, "freq", value)}
+        />
+      </label>
+      <label>
+        <span>Inspection method</span>
+        <LineField
+          multiline
+          label={`Inspection method for ${label}`}
+          value={line.method}
+          onChange={(value) => onField(key, defaults, "method", value)}
+        />
+      </label>
+      <label>
+        <span>Observation</span>
+        <ObservationSelect
+          label={`Observation for ${label}`}
+          value={line.observation}
+          onChange={(value) => onField(key, defaults, "observation", value)}
+        />
+      </label>
+      <label>
+        <span>Remarks</span>
+        <LineField
+          multiline
+          label={`Remarks for ${label}`}
+          value={line.remark}
+          onChange={(value) => onField(key, defaults, "remark", value)}
+        />
+      </label>
+    </article>
+  )
+}
+
 export function PdiPage({ embedded = false, layout, token, onLeave, onLogout }) {
   const [meta, setMeta] = useState(initialMeta)
   const [rows, setRows] = useState({})
@@ -234,6 +329,55 @@ export function PdiPage({ embedded = false, layout, token, onLeave, onLogout }) 
       removePdiPrintHost()
     }
   }, [])
+
+  const checklist = []
+  extraParameters.forEach((parameter, itemIndex) => {
+    const key = masterKey(itemIndex)
+    const defaults = {
+      section:
+        itemIndex === 0
+          ? selectedProduct?.group
+            ? `Product master · ${selectedProduct.group}`
+            : "Product master"
+          : "",
+      parameter,
+      specification: "",
+      freq: "100%",
+      method: "Product master",
+      observation: "",
+      remark: "",
+    }
+    checklist.push({
+      key,
+      defaults,
+      line: rowValue(key, defaults),
+      showSection: itemIndex === 0,
+      sectionSpan: extraParameters.length,
+      label: parameter,
+    })
+  })
+  reportSections.forEach((section, sectionIndex) => {
+    section.items.forEach((item, itemIndex) => {
+      const key = pdiItemKey(sectionIndex, itemIndex)
+      const defaults = {
+        section: itemIndex === 0 ? section.title : "",
+        parameter: item.parameter,
+        specification: item.specification,
+        freq: item.freq,
+        method: item.method,
+        observation: "",
+        remark: "",
+      }
+      checklist.push({
+        key,
+        defaults,
+        line: rowValue(key, defaults),
+        showSection: itemIndex === 0,
+        sectionSpan: section.items.length,
+        label: item.parameter,
+      })
+    })
+  })
 
   const frame = layout || (embedded ? "embedded" : "page")
 
@@ -336,194 +480,77 @@ export function PdiPage({ embedded = false, layout, token, onLeave, onLogout }) 
               </tr>
             </thead>
             <tbody>
-              {extraParameters.length > 0 &&
-                extraParameters.map((parameter, itemIndex) => {
-                  const key = masterKey(itemIndex)
-                  const defaults = {
-                    section:
-                      itemIndex === 0
-                        ? selectedProduct?.group
-                          ? `Product master · ${selectedProduct.group}`
-                          : "Product master"
-                        : "",
-                    parameter,
-                    specification: "",
-                    freq: "100%",
-                    method: "Product master",
-                    observation: "",
-                    remark: "",
-                  }
-                  const line = rowValue(key, defaults)
-                  return (
-                    <tr key={key}>
-                      {itemIndex === 0 && (
-                        <td className="pdi-section" rowSpan={extraParameters.length}>
-                          <LineField
-                            multiline
-                            label="Section"
-                            value={line.section}
-                            onChange={(value) => setRowField(key, defaults, "section", value)}
-                          />
-                        </td>
-                      )}
-                      <td className="pdi-parameter">
+              {checklist.map((entry) => {
+                const { key, defaults, line, showSection, sectionSpan, label } = entry
+                return (
+                  <tr key={key}>
+                    {showSection && (
+                      <td className="pdi-section" rowSpan={sectionSpan}>
                         <LineField
                           multiline
-                          label={`Parameter for ${parameter}`}
-                          value={line.parameter}
-                          onChange={(value) => setRowField(key, defaults, "parameter", value)}
+                          label={`Section ${line.section || label}`}
+                          value={line.section}
+                          onChange={(value) => setRowField(key, defaults, "section", value)}
                         />
                       </td>
-                      <td className="pdi-spec">
-                        <LineField
-                          multiline
-                          label={`Specification for ${parameter}`}
-                          value={line.specification}
-                          onChange={(value) => setRowField(key, defaults, "specification", value)}
-                        />
-                      </td>
-                      <td className="pdi-freq">
-                        <LineField
-                          label={`Frequency for ${parameter}`}
-                          value={line.freq}
-                          onChange={(value) => setRowField(key, defaults, "freq", value)}
-                        />
-                      </td>
-                      <td className="pdi-method">
-                        <LineField
-                          multiline
-                          label={`Inspection method for ${parameter}`}
-                          value={line.method}
-                          onChange={(value) => setRowField(key, defaults, "method", value)}
-                        />
-                      </td>
-                      <td className="pdi-observation-cell">
-                        <select
-                          className={`pdi-observation${
-                            line.observation === "OK"
-                              ? " is-ok"
-                              : line.observation === "NOT OK"
-                                ? " is-not-ok"
-                                : ""
-                          }`}
-                          aria-label={`Observation for ${parameter}`}
-                          value={line.observation}
-                          onChange={(event) =>
-                            setRowField(key, defaults, "observation", event.target.value)
-                          }
-                        >
-                          <option value="">Select</option>
-                          {PDI_OBSERVATIONS.map((choice) => (
-                            <option key={choice} value={choice}>
-                              {choice}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="pdi-remark-cell">
-                        <LineField
-                          multiline
-                          label={`Remarks for ${parameter}`}
-                          value={line.remark}
-                          onChange={(value) => setRowField(key, defaults, "remark", value)}
-                        />
-                      </td>
-                    </tr>
-                  )
-                })}
-              {reportSections.map((section, sectionIndex) =>
-                section.items.map((item, itemIndex) => {
-                  const key = pdiItemKey(sectionIndex, itemIndex)
-                  const defaults = {
-                    section: itemIndex === 0 ? section.title : "",
-                    parameter: item.parameter,
-                    specification: item.specification,
-                    freq: item.freq,
-                    method: item.method,
-                    observation: "",
-                    remark: "",
-                  }
-                  const line = rowValue(key, defaults)
-                  return (
-                    <tr key={key}>
-                      {itemIndex === 0 && (
-                        <td className="pdi-section" rowSpan={section.items.length}>
-                          <LineField
-                            multiline
-                            label={`Section ${section.title}`}
-                            value={line.section}
-                            onChange={(value) => setRowField(key, defaults, "section", value)}
-                          />
-                        </td>
-                      )}
-                      <td className="pdi-parameter">
-                        <LineField
-                          multiline
-                          label={`Parameter for ${item.parameter}`}
-                          value={line.parameter}
-                          onChange={(value) => setRowField(key, defaults, "parameter", value)}
-                        />
-                      </td>
-                      <td className="pdi-spec">
-                        <LineField
-                          multiline
-                          label={`Specification for ${item.parameter}`}
-                          value={line.specification}
-                          onChange={(value) => setRowField(key, defaults, "specification", value)}
-                        />
-                      </td>
-                      <td className="pdi-freq">
-                        <LineField
-                          label={`Frequency for ${item.parameter}`}
-                          value={line.freq}
-                          onChange={(value) => setRowField(key, defaults, "freq", value)}
-                        />
-                      </td>
-                      <td className="pdi-method">
-                        <LineField
-                          multiline
-                          label={`Inspection method for ${item.parameter}`}
-                          value={line.method}
-                          onChange={(value) => setRowField(key, defaults, "method", value)}
-                        />
-                      </td>
-                      <td className="pdi-observation-cell">
-                        <select
-                          className={`pdi-observation${
-                            line.observation === "OK"
-                              ? " is-ok"
-                              : line.observation === "NOT OK"
-                                ? " is-not-ok"
-                                : ""
-                          }`}
-                          aria-label={`Observation for ${item.parameter}`}
-                          value={line.observation}
-                          onChange={(event) =>
-                            setRowField(key, defaults, "observation", event.target.value)
-                          }
-                        >
-                          <option value="">Select</option>
-                          {PDI_OBSERVATIONS.map((choice) => (
-                            <option key={choice} value={choice}>
-                              {choice}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="pdi-remark-cell">
-                        <LineField
-                          multiline
-                          label={`Remarks for ${item.parameter}`}
-                          value={line.remark}
-                          onChange={(value) => setRowField(key, defaults, "remark", value)}
-                        />
-                      </td>
-                    </tr>
-                  )
-                }),
-              )}
+                    )}
+                    <td className="pdi-parameter">
+                      <LineField
+                        multiline
+                        label={`Parameter for ${label}`}
+                        value={line.parameter}
+                        onChange={(value) => setRowField(key, defaults, "parameter", value)}
+                      />
+                    </td>
+                    <td className="pdi-spec">
+                      <LineField
+                        multiline
+                        label={`Specification for ${label}`}
+                        value={line.specification}
+                        onChange={(value) => setRowField(key, defaults, "specification", value)}
+                      />
+                    </td>
+                    <td className="pdi-freq">
+                      <LineField
+                        label={`Frequency for ${label}`}
+                        value={line.freq}
+                        onChange={(value) => setRowField(key, defaults, "freq", value)}
+                      />
+                    </td>
+                    <td className="pdi-method">
+                      <LineField
+                        multiline
+                        label={`Inspection method for ${label}`}
+                        value={line.method}
+                        onChange={(value) => setRowField(key, defaults, "method", value)}
+                      />
+                    </td>
+                    <td className="pdi-observation-cell">
+                      <ObservationSelect
+                        label={`Observation for ${label}`}
+                        value={line.observation}
+                        onChange={(value) => setRowField(key, defaults, "observation", value)}
+                      />
+                    </td>
+                    <td className="pdi-remark-cell">
+                      <LineField
+                        multiline
+                        label={`Remarks for ${label}`}
+                        value={line.remark}
+                        onChange={(value) => setRowField(key, defaults, "remark", value)}
+                      />
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
+        </div>
+
+        <div className="pdi-phone-list">
+          {checklist.map((entry) => (
+            <PhoneCard key={entry.key} entry={entry} onField={setRowField} />
+          ))}
         </div>
 
         <div className="pdi-signoff">
