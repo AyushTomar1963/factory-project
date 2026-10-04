@@ -12,6 +12,8 @@
   border-bottom: 2px solid #1d4ed8;
   padding-bottom: 1rem;
   margin-bottom: 1.25rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .report-print-brand {
@@ -120,23 +122,49 @@
   margin-bottom: 1rem;
 }
 
+#inspection-report-print-host {
+  display: none;
+}
+
 @media print {
-  body * {
-    visibility: hidden;
+  html,
+  body {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    background: #fff !important;
+    position: static !important;
   }
 
-  .report-print-root,
-  .report-print-root * {
-    visibility: visible;
+  body > *:not(#inspection-report-print-host) {
+    display: none !important;
   }
 
-  .report-print-root {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    padding: 1.5rem;
-    background: white !important;
+  #inspection-report-print-host {
+    display: block !important;
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  #inspection-report-print-host .report-print-root,
+  #inspection-report-print-host .report-print-root * {
+    visibility: visible !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  #inspection-report-print-host .report-print-root {
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0;
+    background: #fff !important;
   }
 
   .report-print-actions,

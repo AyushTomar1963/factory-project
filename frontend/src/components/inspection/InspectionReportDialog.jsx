@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react"
 import { Download, FileText, Printer } from "lucide-react"
 import {
   Dialog,
@@ -9,8 +10,33 @@ import {
 import { Button } from "../ui/qa-button"
 import "./report-print.css"
 
+const PRINT_HOST_ID = "inspection-report-print-host"
+
+function mountPrintHost() {
+  const source = document.getElementById("inspection-report-print")
+  if (!source) return
+
+  document.getElementById(PRINT_HOST_ID)?.remove()
+
+  const host = document.createElement("div")
+  host.id = PRINT_HOST_ID
+  host.setAttribute("aria-hidden", "true")
+
+  const clone = source.cloneNode(true)
+  clone.removeAttribute("id")
+  clone.querySelectorAll("img").forEach((img) => {
+    if (img.complete && img.naturalWidth === 0) img.remove()
+  })
+  host.appendChild(clone)
+  document.body.appendChild(host)
+}
+
+function removePrintHost() {
+  document.getElementById(PRINT_HOST_ID)?.remove()
+}
+
 function dispositionClass(disposition = "") {
-  const value = disposition.toUpperCase()
+  const value = String(disposition).toUpperCase()
   if (value.includes("FAIL") || value.includes("REJECT")) {
     return "report-print-disposition report-print-disposition--fail"
   }
@@ -27,9 +53,31 @@ function formatDate(value) {
 }
 
 export function InspectionReportDialog({ open, report, inspector, onClose, onNewInspection }) {
+  const logoKey = report?.report_id ?? ""
+  const [hiddenLogoKey, setHiddenLogoKey] = useState(null)
+  const showLogo = hiddenLogoKey !== logoKey
+
+  useEffect(() => {
+    if (!open || !report) {
+      removePrintHost()
+      return undefined
+    }
+
+    const onBeforePrint = () => mountPrintHost()
+    const onAfterPrint = () => removePrintHost()
+    window.addEventListener("beforeprint", onBeforePrint)
+    window.addEventListener("afterprint", onAfterPrint)
+    return () => {
+      window.removeEventListener("beforeprint", onBeforePrint)
+      window.removeEventListener("afterprint", onAfterPrint)
+      removePrintHost()
+    }
+  }, [open, report])
+
   if (!report) return null
 
   const handlePrint = () => {
+    mountPrintHost()
     window.print()
   }
 
@@ -59,7 +107,13 @@ export function InspectionReportDialog({ open, report, inspector, onClose, onNew
         <article className="report-print-root" id="inspection-report-print">
           <header className="report-print-header">
             <div className="report-print-brand">
-              <img src="/logo.jpg" alt="Rushab Industries" />
+              {showLogo && (
+                <img
+                  src="/logo.jpg"
+                  alt="Rushab Industries"
+                  onError={() => setHiddenLogoKey(logoKey)}
+                />
+              )}
               <div>
                 <p className="text-sm font-bold text-brand-800">
                   {report.company || "Rushab Industries"}
@@ -117,7 +171,7 @@ export function InspectionReportDialog({ open, report, inspector, onClose, onNew
 
           <footer className="report-print-footer">
             <p>{report.generated_by || "Rushab Industries QA System"}</p>
-            <p className="mt-2 flex items-center gap-1">
+            <p className="no-print mt-2 flex items-center gap-1">
               <Download className="size-3" />
               Use Print → Save as PDF for archival copy.
             </p>
