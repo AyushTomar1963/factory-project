@@ -1,6 +1,10 @@
 // Same-origin /api is forwarded to the existing Render service by vercel.json.
 // Calling Render directly is blocked in the browser (its CORS list rejects this site).
-export const API_BASE = import.meta.env.VITE_API_URL?.trim() || ""
+// A local .env may set VITE_API_URL to localhost for dev. Production must ignore that
+// and stay on the same-origin proxy, or the live site tries to call the user's machine.
+const configuredApi = import.meta.env.VITE_API_URL?.trim() || ""
+const localApi = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/.test(configuredApi)
+export const API_BASE = import.meta.env.PROD && localApi ? "" : configuredApi
 
 export const STORAGE_KEYS = {
   token: "nbeToken",
