@@ -139,27 +139,6 @@ function masterKey(index) {
   return `master-${index}`
 }
 
-function LineField({ label, value, onChange, multiline = false }) {
-  if (multiline) {
-    return (
-      <textarea
-        className="pdi-cell-input pdi-line-remark"
-        aria-label={label}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    )
-  }
-  return (
-    <input
-      className="pdi-cell-input"
-      aria-label={label}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-    />
-  )
-}
-
 function observationClass(value) {
   if (value === "OK") return "pdi-observation is-ok"
   if (value === "NOT OK") return "pdi-observation is-not-ok"
@@ -184,74 +163,56 @@ function ObservationSelect({ label, value, onChange }) {
   )
 }
 
-function PhoneCard({ entry, onField }) {
-  const { key, defaults, line, showSection, label } = entry
+function ReadOnlyValue({ value }) {
+  return <span className="pdi-readonly">{value}</span>
+}
+
+function PhoneChecklist({ checklist, onField }) {
+  const groups = []
+  for (const entry of checklist) {
+    const title = entry.showSection ? entry.line.section : ""
+    const last = groups[groups.length - 1]
+    if (!last || (title && title !== last.title)) groups.push({ title: title || last?.title || "", items: [] })
+    groups[groups.length - 1].items.push(entry)
+  }
+
   return (
-    <article className="pdi-phone-card">
-      {showSection && (
-        <label>
-          <span>Section</span>
-          <LineField
-            multiline
-            label={`Section ${line.section || label}`}
-            value={line.section}
-            onChange={(value) => onField(key, defaults, "section", value)}
-          />
-        </label>
-      )}
-      <label>
-        <span>Parameter</span>
-        <LineField
-          multiline
-          label={`Parameter for ${label}`}
-          value={line.parameter}
-          onChange={(value) => onField(key, defaults, "parameter", value)}
-        />
-      </label>
-      <label>
-        <span>Specification</span>
-        <LineField
-          multiline
-          label={`Specification for ${label}`}
-          value={line.specification}
-          onChange={(value) => onField(key, defaults, "specification", value)}
-        />
-      </label>
-      <label>
-        <span>Frequency</span>
-        <LineField
-          label={`Frequency for ${label}`}
-          value={line.freq}
-          onChange={(value) => onField(key, defaults, "freq", value)}
-        />
-      </label>
-      <label>
-        <span>Inspection method</span>
-        <LineField
-          multiline
-          label={`Inspection method for ${label}`}
-          value={line.method}
-          onChange={(value) => onField(key, defaults, "method", value)}
-        />
-      </label>
-      <label>
-        <span>Observation</span>
-        <ObservationSelect
-          label={`Observation for ${label}`}
-          value={line.observation}
-          onChange={(value) => onField(key, defaults, "observation", value)}
-        />
-      </label>
-      <label>
-        <span>Remarks</span>
-        <LineField
-          multiline
-          label={`Remarks for ${label}`}
-          value={line.remark}
-          onChange={(value) => onField(key, defaults, "remark", value)}
-        />
-      </label>
-    </article>
+    <div className="pdi-phone-list">
+      {groups.map((group) => (
+        <section key={group.title || group.items[0].key} className="pdi-phone-group">
+          {group.title ? <h2 className="pdi-phone-section">{group.title}</h2> : null}
+          {group.items.map((entry) => {
+            const { key, defaults, line, label } = entry
+            const facts = [line.freq, line.method].filter(Boolean).join(" · ")
+            return (
+              <article key={key} className="pdi-phone-card">
+                <h3 className="pdi-phone-title">{line.parameter}</h3>
+                {line.specification ? <p className="pdi-phone-spec">{line.specification}</p> : null}
+                {facts ? <p className="pdi-phone-facts">{facts}</p> : null}
+                <label className="pdi-phone-edit">
+                  <span>Observation</span>
+                  <ObservationSelect
+                    label={`Observation for ${label}`}
+                    value={line.observation}
+                    onChange={(value) => onField(key, defaults, "observation", value)}
+                  />
+                </label>
+                <label className="pdi-phone-edit">
+                  <span>Remarks</span>
+                  <textarea
+                    className="pdi-cell-input pdi-line-remark"
+                    rows={2}
+                    aria-label={`Remarks for ${label}`}
+                    value={line.remark}
+                    onChange={(event) => onField(key, defaults, "remark", event.target.value)}
+                  />
+                </label>
+              </article>
+            )
+          })}
+        </section>
+      ))}
+    </div>
   )
 }
 
@@ -416,7 +377,7 @@ export function PdiPage({ embedded = false, layout, token, onLeave, onLogout }) 
           {productStatus === "loading" && "Loading product master…"}
           {productStatus === "ready" &&
             (products.length
-              ? "Part details come from Product Master. Every cell can still be edited."
+              ? "Part details come from Product Master. Fill the header, then mark observation and remarks."
               : "Product Master has no parts yet. Add one there first.")}
           {productStatus !== "loading" && productStatus !== "ready" && productStatus !== "missing" && productStatus}
         </p>
@@ -486,44 +447,20 @@ export function PdiPage({ embedded = false, layout, token, onLeave, onLogout }) 
                   <tr key={key}>
                     {showSection && (
                       <td className="pdi-section" rowSpan={sectionSpan}>
-                        <LineField
-                          multiline
-                          label={`Section ${line.section || label}`}
-                          value={line.section}
-                          onChange={(value) => setRowField(key, defaults, "section", value)}
-                        />
+                        <ReadOnlyValue value={line.section} />
                       </td>
                     )}
                     <td className="pdi-parameter">
-                      <LineField
-                        multiline
-                        label={`Parameter for ${label}`}
-                        value={line.parameter}
-                        onChange={(value) => setRowField(key, defaults, "parameter", value)}
-                      />
+                      <ReadOnlyValue value={line.parameter} />
                     </td>
                     <td className="pdi-spec">
-                      <LineField
-                        multiline
-                        label={`Specification for ${label}`}
-                        value={line.specification}
-                        onChange={(value) => setRowField(key, defaults, "specification", value)}
-                      />
+                      <ReadOnlyValue value={line.specification} />
                     </td>
                     <td className="pdi-freq">
-                      <LineField
-                        label={`Frequency for ${label}`}
-                        value={line.freq}
-                        onChange={(value) => setRowField(key, defaults, "freq", value)}
-                      />
+                      <ReadOnlyValue value={line.freq} />
                     </td>
                     <td className="pdi-method">
-                      <LineField
-                        multiline
-                        label={`Inspection method for ${label}`}
-                        value={line.method}
-                        onChange={(value) => setRowField(key, defaults, "method", value)}
-                      />
+                      <ReadOnlyValue value={line.method} />
                     </td>
                     <td className="pdi-observation-cell">
                       <ObservationSelect
@@ -533,11 +470,12 @@ export function PdiPage({ embedded = false, layout, token, onLeave, onLogout }) 
                       />
                     </td>
                     <td className="pdi-remark-cell">
-                      <LineField
-                        multiline
-                        label={`Remarks for ${label}`}
+                      <textarea
+                        className="pdi-cell-input pdi-line-remark"
+                        rows={2}
+                        aria-label={`Remarks for ${label}`}
                         value={line.remark}
-                        onChange={(value) => setRowField(key, defaults, "remark", value)}
+                        onChange={(event) => setRowField(key, defaults, "remark", event.target.value)}
                       />
                     </td>
                   </tr>
@@ -547,11 +485,7 @@ export function PdiPage({ embedded = false, layout, token, onLeave, onLogout }) 
           </table>
         </div>
 
-        <div className="pdi-phone-list">
-          {checklist.map((entry) => (
-            <PhoneCard key={entry.key} entry={entry} onField={setRowField} />
-          ))}
-        </div>
+        <PhoneChecklist checklist={checklist} onField={setRowField} />
 
         <div className="pdi-signoff">
           <label className="pdi-sign">

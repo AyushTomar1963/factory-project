@@ -169,7 +169,7 @@ body {
   html,
   body,
   #root {
-    @apply max-w-[100vw] overflow-x-hidden;
+    @apply max-w-full overflow-x-hidden;
   }
   body {
     @apply bg-background text-foreground;
