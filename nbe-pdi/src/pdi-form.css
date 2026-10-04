@@ -1,5 +1,7 @@
 .pdi-page {
   min-height: 100vh;
+  min-width: 0;
+  max-width: 100%;
   padding: 1rem 0.75rem 2rem;
   background: #eef3f8;
   color: #111827;
@@ -71,7 +73,10 @@
 }
 
 .pdi-sheet {
-  max-width: 72rem;
+  container-type: inline-size;
+  container-name: pdi;
+  max-width: min(72rem, 100%);
+  min-width: 0;
   margin: 0 auto;
   background: #fff;
   color: #111827;
@@ -114,8 +119,8 @@
 
 .pdi-meta {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.75rem 1.25rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem 0.85rem;
   margin: 1rem 0 1.25rem;
 }
 
@@ -173,6 +178,7 @@
 }
 
 .pdi-table-wrap {
+  max-width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -255,7 +261,7 @@
 .pdi-readonly {
   display: block;
   white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   line-height: 1.35;
 }
 
@@ -321,7 +327,7 @@
 
 .pdi-signoff {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 0.75rem;
   margin-top: 1rem;
 }
@@ -344,15 +350,18 @@
 }
 
 .pdi-phone-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  overflow: hidden;
+  border: 1px solid #d1d5db;
+  border-radius: 0.55rem;
+  background: #fff;
 }
 
 .pdi-phone-section {
-  margin: 0.15rem 0 0;
-  color: #1f4e78;
-  font-size: 0.82rem;
+  margin: 0;
+  padding: 0.4rem 0.65rem;
+  background: #1f4e78;
+  color: #fff;
+  font-size: 0.72rem;
   font-weight: 800;
   line-height: 1.3;
 }
@@ -360,62 +369,59 @@
 .pdi-phone-card {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
-  padding: 0.7rem 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.7rem;
+  gap: 0.35rem;
+  padding: 0.55rem 0.65rem 0.6rem;
+  border-top: 1px solid #e5e7eb;
   background: #fff;
+}
+
+.pdi-phone-card:nth-child(even) {
+  background: #f8fafc;
 }
 
 .pdi-phone-title {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   font-weight: 700;
-  line-height: 1.35;
+  line-height: 1.3;
 }
 
 .pdi-phone-spec,
 .pdi-phone-facts {
   margin: 0;
-  line-height: 1.35;
+  line-height: 1.3;
 }
 
 .pdi-phone-spec {
   color: #1f2937;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .pdi-phone-facts {
   color: #4b5563;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
 }
 
-.pdi-phone-edit {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  min-width: 0;
-}
-
-.pdi-phone-edit span {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #1f4e78;
+.pdi-phone-actions {
+  display: grid;
+  grid-template-columns: minmax(6.75rem, 8.25rem) minmax(0, 1fr);
+  gap: 0.4rem;
+  align-items: center;
 }
 
 .pdi-phone-card .pdi-cell-input,
 .pdi-phone-card .pdi-observation {
   border-color: #d1d5db;
   background: #fff;
-  font-size: 1rem;
-  min-height: 2.75rem;
+  font-size: 16px;
+  min-height: 2.6rem;
 }
 
-.pdi-phone-card textarea {
-  min-height: 2.75rem;
+.pdi-phone-card .pdi-cell-input {
+  padding: 0.35rem 0.5rem;
 }
 
-@media (max-width: 959px) {
+@container pdi (max-width: 52rem) {
   .pdi-table-wrap {
     display: none;
   }
@@ -423,16 +429,7 @@
   .pdi-phone-list {
     display: flex;
     flex-direction: column;
-    gap: 0.85rem;
-  }
-
-  .pdi-page {
-    min-height: 0;
-    padding: 0.75rem 0.75rem max(1.25rem, env(safe-area-inset-bottom));
-  }
-
-  .pdi-sheet {
-    padding: 0.85rem 0.75rem 1rem;
+    gap: 0.65rem;
   }
 
   .pdi-logo {
@@ -441,24 +438,41 @@
   }
 
   .pdi-company {
-    font-size: 1.05rem;
+    font-size: 1.02rem;
     line-height: 1.25;
   }
 
   .pdi-subtitle {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
   }
 
   .pdi-meta {
-    gap: 0.55rem;
-    margin: 0.75rem 0 1rem;
+    gap: 0.4rem 0.5rem;
+    margin: 0.65rem 0 0.8rem;
+  }
+
+  .pdi-field span,
+  .pdi-sign span {
+    font-size: 0.62rem;
+    line-height: 1.2;
   }
 
   .pdi-field input,
-  .pdi-sign input,
-  .pdi-observation {
-    font-size: 1rem;
-    min-height: 2.75rem;
+  .pdi-sign input {
+    min-height: 2.6rem;
+    padding: 0.35rem 0.45rem;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 959px) {
+  .pdi-page {
+    min-height: 0;
+    padding: 0.65rem 0.65rem max(1.25rem, env(safe-area-inset-bottom));
+  }
+
+  .pdi-sheet {
+    padding: 0.8rem 0.65rem 1rem;
   }
 
   .pdi-page-framed {
@@ -475,21 +489,9 @@
   }
 }
 
-@media (min-width: 540px) and (max-width: 959px) {
-  .pdi-meta,
-  .pdi-signoff {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
 @media (min-width: 960px) {
   .pdi-sheet {
     padding: 1.5rem 1.5rem 1.75rem;
-  }
-
-  .pdi-meta,
-  .pdi-signoff {
-    grid-template-columns: 1fr 1fr;
   }
 }
 

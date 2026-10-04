@@ -194,9 +194,9 @@ export function AdminAppShell({
           </div>
         </header>
 
-        <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
+        <div className="flex min-w-0 flex-1 flex-col gap-4 p-3 md:gap-6 md:p-6">
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-foreground">
+            <h1 className="text-xl font-black tracking-tight text-foreground md:text-2xl">
               {current.title}
             </h1>
             <p className="text-sm text-muted-foreground">

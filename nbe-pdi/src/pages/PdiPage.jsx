@@ -186,27 +186,25 @@ function PhoneChecklist({ checklist, onField }) {
             const facts = [line.freq, line.method].filter(Boolean).join(" · ")
             return (
               <article key={key} className="pdi-phone-card">
-                <h3 className="pdi-phone-title">{line.parameter}</h3>
-                {line.specification ? <p className="pdi-phone-spec">{line.specification}</p> : null}
-                {facts ? <p className="pdi-phone-facts">{facts}</p> : null}
-                <label className="pdi-phone-edit">
-                  <span>Observation</span>
+                <div className="pdi-phone-copy">
+                  <h3 className="pdi-phone-title">{line.parameter}</h3>
+                  {line.specification ? <p className="pdi-phone-spec">{line.specification}</p> : null}
+                  {facts ? <p className="pdi-phone-facts">{facts}</p> : null}
+                </div>
+                <div className="pdi-phone-actions">
                   <ObservationSelect
                     label={`Observation for ${label}`}
                     value={line.observation}
                     onChange={(value) => onField(key, defaults, "observation", value)}
                   />
-                </label>
-                <label className="pdi-phone-edit">
-                  <span>Remarks</span>
-                  <textarea
-                    className="pdi-cell-input pdi-line-remark"
-                    rows={2}
+                  <input
+                    className="pdi-cell-input"
                     aria-label={`Remarks for ${label}`}
+                    placeholder="Remarks"
                     value={line.remark}
                     onChange={(event) => onField(key, defaults, "remark", event.target.value)}
                   />
-                </label>
+                </div>
               </article>
             )
           })}
