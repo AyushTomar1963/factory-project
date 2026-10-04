@@ -76,10 +76,15 @@ function restorePdfTitle() {
   previousDocumentTitle = ""
 }
 
+function cellLabel(cell) {
+  const field = cell.querySelector("input, textarea")
+  return field ? field.value : cell.textContent
+}
+
 function flattenSectionCells(root) {
   root.querySelectorAll("td.pdi-section[rowspan]").forEach((cell) => {
     const span = Number(cell.getAttribute("rowspan")) || 1
-    const label = cell.textContent
+    const label = cellLabel(cell)
     cell.removeAttribute("rowspan")
     let row = cell.parentElement?.nextElementSibling
     for (let index = 1; index < span && row; index += 1) {
@@ -134,10 +139,30 @@ function masterKey(index) {
   return `master-${index}`
 }
 
+function LineField({ label, value, onChange, multiline = false }) {
+  if (multiline) {
+    return (
+      <textarea
+        className="pdi-cell-input pdi-line-remark"
+        aria-label={label}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    )
+  }
+  return (
+    <input
+      className="pdi-cell-input"
+      aria-label={label}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  )
+}
+
 export function PdiPage({ embedded = false, token, onLeave, onLogout }) {
   const [meta, setMeta] = useState(initialMeta)
-  const [observations, setObservations] = useState({})
-  const [remarks, setRemarks] = useState("")
+  const [rows, setRows] = useState({})
   const [checkedBy, setCheckedBy] = useState("")
   const [approvedBy, setApprovedBy] = useState("")
   const [products, setProducts] = useState([])
@@ -176,15 +201,18 @@ export function PdiPage({ embedded = false, token, onLeave, onLogout }) {
     setMeta((current) => ({
       ...current,
       partNo: partNumber,
-      partDescription: product?.part_name || "",
+      partDescription: product ? product.part_name : current.partDescription,
     }))
-    setObservations((current) => {
-      const next = { ...current }
-      Object.keys(next).forEach((key) => {
-        if (key.startsWith("master-")) delete next[key]
-      })
-      return next
-    })
+    if (product) setRows({})
+  }
+
+  const rowValue = (key, defaults) => ({ ...defaults, ...rows[key] })
+
+  const setRowField = (key, defaults, field, value) => {
+    setRows((current) => ({
+      ...current,
+      [key]: { ...defaults, ...current[key], [field]: value },
+    }))
   }
 
   useEffect(() => {
@@ -227,7 +255,7 @@ export function PdiPage({ embedded = false, token, onLeave, onLogout }) {
           {productStatus === "loading" && "Loading product master…"}
           {productStatus === "ready" &&
             (products.length
-              ? "Part number, description, and parameters come from Product Master."
+              ? "Part details come from Product Master. Every cell can still be edited."
               : "Product Master has no parts yet. Add one there first.")}
           {productStatus !== "loading" && productStatus !== "ready" && productStatus !== "missing" && productStatus}
         </p>
@@ -260,24 +288,25 @@ export function PdiPage({ embedded = false, token, onLeave, onLogout }) {
             <label key={field.key} className="pdi-field">
               <span>{field.label}</span>
               {field.key === "partNo" ? (
-                <select
-                  aria-label="Part number from product master"
-                  value={meta.partNo}
-                  onChange={(event) => chooseProduct(event.target.value)}
-                >
-                  <option value="">Select from product master</option>
-                  {products.map((product) => (
-                    <option key={product.part_number} value={product.part_number}>
-                      {product.part_number}
-                      {product.part_name ? ` — ${product.part_name}` : ""}
-                    </option>
-                  ))}
-                </select>
+                <>
+                  <input
+                    list="pdi-part-numbers"
+                    aria-label="Part number from product master"
+                    value={meta.partNo}
+                    onChange={(event) => chooseProduct(event.target.value)}
+                  />
+                  <datalist id="pdi-part-numbers">
+                    {products.map((product) => (
+                      <option key={product.part_number} value={product.part_number}>
+                        {product.part_name || product.part_number}
+                      </option>
+                    ))}
+                  </datalist>
+                </>
               ) : (
                 <input
                   type={field.calendar ? "date" : "text"}
                   value={meta[field.key]}
-                  readOnly={field.key === "partDescription"}
                   onChange={(event) =>
                     setMeta((current) => ({ ...current, [field.key]: event.target.value }))
                   }
@@ -297,42 +326,80 @@ export function PdiPage({ embedded = false, token, onLeave, onLogout }) {
                 <th>FREQ</th>
                 <th>INSPECTION METHOD</th>
                 <th>OBSERVATION</th>
+                <th>REMARKS</th>
               </tr>
             </thead>
             <tbody>
               {extraParameters.length > 0 &&
                 extraParameters.map((parameter, itemIndex) => {
                   const key = masterKey(itemIndex)
-                  const observation = observations[key] || ""
+                  const defaults = {
+                    section:
+                      itemIndex === 0
+                        ? selectedProduct?.group
+                          ? `Product master · ${selectedProduct.group}`
+                          : "Product master"
+                        : "",
+                    parameter,
+                    specification: "",
+                    freq: "100%",
+                    method: "Product master",
+                    observation: "",
+                    remark: "",
+                  }
+                  const line = rowValue(key, defaults)
                   return (
                     <tr key={key}>
                       {itemIndex === 0 && (
                         <td className="pdi-section" rowSpan={extraParameters.length}>
-                          {selectedProduct.group
-                            ? `Product master · ${selectedProduct.group}`
-                            : "Product master"}
+                          <LineField
+                            label="Section"
+                            value={line.section}
+                            onChange={(value) => setRowField(key, defaults, "section", value)}
+                          />
                         </td>
                       )}
-                      <td className="pdi-parameter">{parameter}</td>
-                      <td className="pdi-spec"></td>
-                      <td className="pdi-freq">100%</td>
-                      <td className="pdi-method">Product master</td>
+                      <td className="pdi-parameter">
+                        <LineField
+                          label={`Parameter for ${parameter}`}
+                          value={line.parameter}
+                          onChange={(value) => setRowField(key, defaults, "parameter", value)}
+                        />
+                      </td>
+                      <td className="pdi-spec">
+                        <LineField
+                          label={`Specification for ${parameter}`}
+                          value={line.specification}
+                          onChange={(value) => setRowField(key, defaults, "specification", value)}
+                        />
+                      </td>
+                      <td className="pdi-freq">
+                        <LineField
+                          label={`Frequency for ${parameter}`}
+                          value={line.freq}
+                          onChange={(value) => setRowField(key, defaults, "freq", value)}
+                        />
+                      </td>
+                      <td className="pdi-method">
+                        <LineField
+                          label={`Inspection method for ${parameter}`}
+                          value={line.method}
+                          onChange={(value) => setRowField(key, defaults, "method", value)}
+                        />
+                      </td>
                       <td className="pdi-observation-cell">
                         <select
                           className={`pdi-observation${
-                            observation === "OK"
+                            line.observation === "OK"
                               ? " is-ok"
-                              : observation === "NOT OK"
+                              : line.observation === "NOT OK"
                                 ? " is-not-ok"
                                 : ""
                           }`}
                           aria-label={`Observation for ${parameter}`}
-                          value={observation}
+                          value={line.observation}
                           onChange={(event) =>
-                            setObservations((current) => ({
-                              ...current,
-                              [key]: event.target.value,
-                            }))
+                            setRowField(key, defaults, "observation", event.target.value)
                           }
                         >
                           <option value="">Select</option>
@@ -343,40 +410,82 @@ export function PdiPage({ embedded = false, token, onLeave, onLogout }) {
                           ))}
                         </select>
                       </td>
+                      <td className="pdi-remark-cell">
+                        <LineField
+                          multiline
+                          label={`Remarks for ${parameter}`}
+                          value={line.remark}
+                          onChange={(value) => setRowField(key, defaults, "remark", value)}
+                        />
+                      </td>
                     </tr>
                   )
                 })}
               {reportSections.map((section, sectionIndex) =>
                 section.items.map((item, itemIndex) => {
                   const key = pdiItemKey(sectionIndex, itemIndex)
-                  const observation = observations[key] || ""
+                  const defaults = {
+                    section: itemIndex === 0 ? section.title : "",
+                    parameter: item.parameter,
+                    specification: item.specification,
+                    freq: item.freq,
+                    method: item.method,
+                    observation: "",
+                    remark: "",
+                  }
+                  const line = rowValue(key, defaults)
                   return (
                     <tr key={key}>
                       {itemIndex === 0 && (
                         <td className="pdi-section" rowSpan={section.items.length}>
-                          {section.title}
+                          <LineField
+                            label={`Section ${section.title}`}
+                            value={line.section}
+                            onChange={(value) => setRowField(key, defaults, "section", value)}
+                          />
                         </td>
                       )}
-                      <td className="pdi-parameter">{item.parameter}</td>
-                      <td className="pdi-spec">{item.specification}</td>
-                      <td className="pdi-freq">{item.freq}</td>
-                      <td className="pdi-method">{item.method}</td>
+                      <td className="pdi-parameter">
+                        <LineField
+                          label={`Parameter for ${item.parameter}`}
+                          value={line.parameter}
+                          onChange={(value) => setRowField(key, defaults, "parameter", value)}
+                        />
+                      </td>
+                      <td className="pdi-spec">
+                        <LineField
+                          label={`Specification for ${item.parameter}`}
+                          value={line.specification}
+                          onChange={(value) => setRowField(key, defaults, "specification", value)}
+                        />
+                      </td>
+                      <td className="pdi-freq">
+                        <LineField
+                          label={`Frequency for ${item.parameter}`}
+                          value={line.freq}
+                          onChange={(value) => setRowField(key, defaults, "freq", value)}
+                        />
+                      </td>
+                      <td className="pdi-method">
+                        <LineField
+                          label={`Inspection method for ${item.parameter}`}
+                          value={line.method}
+                          onChange={(value) => setRowField(key, defaults, "method", value)}
+                        />
+                      </td>
                       <td className="pdi-observation-cell">
                         <select
                           className={`pdi-observation${
-                            observation === "OK"
+                            line.observation === "OK"
                               ? " is-ok"
-                              : observation === "NOT OK"
+                              : line.observation === "NOT OK"
                                 ? " is-not-ok"
                                 : ""
                           }`}
                           aria-label={`Observation for ${item.parameter}`}
-                          value={observation}
+                          value={line.observation}
                           onChange={(event) =>
-                            setObservations((current) => ({
-                              ...current,
-                              [key]: event.target.value,
-                            }))
+                            setRowField(key, defaults, "observation", event.target.value)
                           }
                         >
                           <option value="">Select</option>
@@ -386,6 +495,14 @@ export function PdiPage({ embedded = false, token, onLeave, onLogout }) {
                             </option>
                           ))}
                         </select>
+                      </td>
+                      <td className="pdi-remark-cell">
+                        <LineField
+                          multiline
+                          label={`Remarks for ${item.parameter}`}
+                          value={line.remark}
+                          onChange={(value) => setRowField(key, defaults, "remark", value)}
+                        />
                       </td>
                     </tr>
                   )
@@ -394,16 +511,6 @@ export function PdiPage({ embedded = false, token, onLeave, onLogout }) {
             </tbody>
           </table>
         </div>
-
-        <label className="pdi-remarks">
-          <span>REMARKS</span>
-          <textarea
-            aria-label="Remarks"
-            placeholder="Inspection remarks"
-            value={remarks}
-            onChange={(event) => setRemarks(event.target.value)}
-          />
-        </label>
 
         <div className="pdi-signoff">
           <label className="pdi-sign">

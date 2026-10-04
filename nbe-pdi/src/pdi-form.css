@@ -158,7 +158,7 @@
 
 .pdi-table {
   width: 100%;
-  min-width: 760px;
+  min-width: 980px;
   border-collapse: collapse;
   font-size: 0.8rem;
 }
@@ -193,25 +193,59 @@
 }
 
 .pdi-parameter {
-  width: 29%;
+  width: 20%;
 }
 
 .pdi-spec {
-  width: 19%;
+  width: 16%;
 }
 
 .pdi-freq {
-  width: 10%;
+  width: 8%;
   text-align: center;
-  white-space: nowrap;
 }
 
 .pdi-method {
-  width: 18%;
+  width: 14%;
 }
 
 .pdi-observation-cell {
   width: 12%;
+}
+
+.pdi-remark-cell {
+  width: 16%;
+}
+
+.pdi-cell-input {
+  width: 100%;
+  min-height: 2.25rem;
+  border: 1px solid transparent;
+  border-radius: 0.3rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 1.35;
+  padding: 0.2rem 0.3rem;
+}
+
+.pdi-section .pdi-cell-input {
+  color: #1f4e78;
+  font-weight: 700;
+  text-align: center;
+}
+
+.pdi-cell-input:hover,
+.pdi-cell-input:focus {
+  border-color: #cbd5e1;
+  background: #fff;
+  outline: 2px solid #1f4e78;
+  outline-offset: 1px;
+}
+
+.pdi-line-remark {
+  display: block;
+  resize: vertical;
 }
 
 .pdi-observation {
@@ -390,6 +424,8 @@
 
   #pdi-print-host .pdi-filled-value {
     font-weight: 700;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 
   #pdi-print-host .pdi-observation-value {
