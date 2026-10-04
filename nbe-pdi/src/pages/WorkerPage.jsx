@@ -102,6 +102,7 @@ export function WorkerPage({ token, onLogout }) {
             onStartScan={() => inspection.setIsScanning(true)}
             onCancelScan={() => inspection.setIsScanning(false)}
             onReset={inspection.resetInspection}
+            onScan={inspection.loadPart}
             isFetchingSpec={inspection.isFetchingSpec}
           />
         </div>

@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react"
-import { Html5QrcodeScanner } from "html5-qrcode"
+import { useCallback, useEffect, useState } from "react"
 import {
   askAiSupervisor,
   fetchPartSpec,
   fetchSuppliers,
   logInspection,
 } from "../api/inspection"
+import { partNumberFromScan } from "../lib/part-scan"
 
 const INITIAL_INTAKE = {
   supplier: "",
@@ -36,7 +36,6 @@ export function useInspection(token) {
   const [reportInspector, setReportInspector] = useState("")
   const [reportOpen, setReportOpen] = useState(false)
   const [isScanning, setIsScanning] = useState(false)
-  const hasScannedRef = useRef(false)
 
   const resetInspection = useCallback(() => {
     setPartNumber("")
@@ -66,7 +65,7 @@ export function useInspection(token) {
 
   const loadPart = useCallback(
     async (rawPartNumber) => {
-      const trimmed = rawPartNumber.trim()
+      const trimmed = partNumberFromScan(rawPartNumber)
       if (!trimmed || !token) return
 
       setPartNumber(trimmed)
@@ -97,27 +96,6 @@ export function useInspection(token) {
     },
     [token],
   )
-
-  useEffect(() => {
-    if (!isScanning) return
-    hasScannedRef.current = false
-    const scanner = new Html5QrcodeScanner("reader", {
-      qrbox: { width: 250, height: 250 },
-      fps: 5,
-    })
-    scanner.render(
-      (decodedText) => {
-        if (hasScannedRef.current) return
-        hasScannedRef.current = true
-        loadPart(decodedText)
-        setIsScanning(false)
-      },
-      () => {},
-    )
-    return () => {
-      scanner.clear().catch(() => {})
-    }
-  }, [isScanning, loadPart])
 
   const isAllRated = specData?.parameters?.every(
     (param) => measuredValues[param] !== "",

@@ -3,6 +3,7 @@ import { ScrollTable } from "@/components/ui/scroll-table"
 import { PDI_SECTIONS, pdiTemplateParameters, isPdiTemplateParameter } from "../../pdi"
 import { Button } from "../ui/qa-button"
 import { FormField, Input } from "../ui/FormField"
+import { PartQrButton } from "./PartQrLabel"
 
 const TEMPLATE_PARAMETERS = pdiTemplateParameters()
 
@@ -295,6 +296,7 @@ export function ProductsTable({ products, onEdit, onDeactivate }) {
               </td>
               <td className="p-4 whitespace-nowrap">
                 <div className="flex flex-wrap gap-3">
+                  <PartQrButton product={product} />
                   <button
                     type="button"
                     onClick={() => onEdit(product)}

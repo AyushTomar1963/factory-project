@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/input-group"
 import { Spinner } from "@/components/ui/spinner"
 import { Button } from "../ui/qa-button"
+import { QrScanPanel } from "./QrScanPanel"
 
 export function PartLoader({
   partNumber,
@@ -31,6 +32,7 @@ export function PartLoader({
   onStartScan,
   onCancelScan,
   onReset,
+  onScan,
   isFetchingSpec,
 }) {
   const [resetOpen, setResetOpen] = useState(false)
@@ -136,13 +138,17 @@ export function PartLoader({
           <DialogHeader>
             <DialogTitle>Scan part QR code</DialogTitle>
             <DialogDescription>
-              Point the camera at the part label. Scanning stops automatically when a code is read.
+              Point the camera at the label printed from Product Master, or upload a photo of that code.
             </DialogDescription>
           </DialogHeader>
-          <div
-            id="reader"
-            className="w-full overflow-hidden rounded-xl border-2 border-brand-300"
-          />
+          {isScanning && (
+            <QrScanPanel
+              onDetected={(partNumberFromCode) => {
+                onCancelScan()
+                onScan(partNumberFromCode)
+              }}
+            />
+          )}
           <DialogFooter>
             <Button variant="muted" size="block" className="w-full" onClick={onCancelScan}>
               Cancel scan
