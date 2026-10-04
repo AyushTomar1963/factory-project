@@ -284,11 +284,11 @@
     position: static !important;
   }
 
-  body > *:not(#pdi-print-host) {
+  body:has(#pdi-print-host) > :not(#pdi-print-host) {
     display: none !important;
   }
 
-  #pdi-print-host {
+  html body > #pdi-print-host {
     display: block !important;
     position: static !important;
     width: auto !important;

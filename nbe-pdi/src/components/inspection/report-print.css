@@ -136,11 +136,11 @@
     position: static !important;
   }
 
-  body > *:not(#inspection-report-print-host) {
+  body:has(#inspection-report-print-host) > :not(#inspection-report-print-host) {
     display: none !important;
   }
 
-  #inspection-report-print-host {
+  html body > #inspection-report-print-host {
     display: block !important;
     position: static !important;
     width: auto !important;
