@@ -131,6 +131,11 @@
   min-width: 0;
 }
 
+.pdi-field select {
+  min-height: 2.6rem;
+  background: #fff;
+}
+
 .pdi-field span,
 .pdi-remarks span,
 .pdi-sign span {
@@ -457,7 +462,12 @@
     line-height: 1.2;
   }
 
+  .pdi-field-part {
+    grid-column: 1 / -1;
+  }
+
   .pdi-field input,
+  .pdi-field select,
   .pdi-sign input {
     min-height: 2.6rem;
     padding: 0.35rem 0.45rem;

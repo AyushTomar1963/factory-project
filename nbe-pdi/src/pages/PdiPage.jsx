@@ -394,24 +394,22 @@ export function PdiPage({ embedded = false, layout, token, onLeave, onLogout }) 
 
         <div className="pdi-meta">
           {PDI_METADATA_ROWS.flat().map((field) => (
-            <label key={field.key} className="pdi-field">
+            <label key={field.key} className={field.key === "partNo" ? "pdi-field pdi-field-part" : "pdi-field"}>
               <span>{field.label}</span>
               {field.key === "partNo" ? (
-                <>
-                  <input
-                    list="pdi-part-numbers"
-                    aria-label="Part number from product master"
-                    value={meta.partNo}
-                    onChange={(event) => chooseProduct(event.target.value)}
-                  />
-                  <datalist id="pdi-part-numbers">
-                    {products.map((product) => (
-                      <option key={product.part_number} value={product.part_number}>
-                        {product.part_name || product.part_number}
-                      </option>
-                    ))}
-                  </datalist>
-                </>
+                <select
+                  aria-label="Part number from product master"
+                  value={meta.partNo}
+                  onChange={(event) => chooseProduct(event.target.value)}
+                >
+                  <option value="">Select from product master</option>
+                  {products.map((product) => (
+                    <option key={product.part_number} value={product.part_number}>
+                      {product.part_number}
+                      {product.part_name ? ` — ${product.part_name}` : ""}
+                    </option>
+                  ))}
+                </select>
               ) : (
                 <input
                   type={field.calendar ? "date" : "text"}
