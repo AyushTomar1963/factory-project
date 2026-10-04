@@ -4,9 +4,15 @@ import { BinDashboard } from "../components/store/BinDashboard"
 import { InwardPage } from "../components/store/InwardPage"
 import { IssueMaterialForm } from "../components/store/IssueMaterialForm"
 import { ReportsPanel } from "../components/store/ReportsPanel"
+import { STORE_TABS } from "../constants/store"
+import { useSection } from "../hooks/useSection"
 
 export function StorePage({ token, username, onLogout }) {
-  const [activeTab, setActiveTab] = useState("bins")
+  const [activeTab, setActiveTab] = useSection(
+    "section",
+    STORE_TABS.map((tab) => tab.id),
+    "bins",
+  )
   const [selectedBinId, setSelectedBinId] = useState(null)
 
   const handleStartInward = (binItemId) => {

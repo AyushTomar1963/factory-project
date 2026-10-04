@@ -138,7 +138,7 @@ export function PartLoader({
           <DialogHeader>
             <DialogTitle>Scan part QR code</DialogTitle>
             <DialogDescription>
-              Point the camera at the label printed from Product Master, or upload a photo of that code.
+              Use the back or front camera, or upload a photo. A mirrored code is read too.
             </DialogDescription>
           </DialogHeader>
           {isScanning && (

@@ -160,7 +160,7 @@ function LineField({ label, value, onChange, multiline = false }) {
   )
 }
 
-export function PdiPage({ embedded = false, token, onLeave, onLogout }) {
+export function PdiPage({ embedded = false, layout, token, onLeave, onLogout }) {
   const [meta, setMeta] = useState(initialMeta)
   const [rows, setRows] = useState({})
   const [checkedBy, setCheckedBy] = useState("")
@@ -172,7 +172,9 @@ export function PdiPage({ embedded = false, token, onLeave, onLogout }) {
   const reportSections = pdiSectionsForProduct(selectedProduct?.parameters)
   const extraParameters = extraProductParameters(selectedProduct?.parameters)
   const metaRef = useRef(meta)
-  metaRef.current = meta
+  useEffect(() => {
+    metaRef.current = meta
+  }, [meta])
 
   useEffect(() => {
     if (!token) return undefined
@@ -233,24 +235,39 @@ export function PdiPage({ embedded = false, token, onLeave, onLogout }) {
     }
   }, [])
 
+  const frame = layout || (embedded ? "embedded" : "page")
+
   return (
-    <div className="pdi-page">
+    <div className={`pdi-page${frame === "page" ? "" : ` pdi-page-${frame}`}`}>
       <div className="pdi-toolbar no-print">
-        {!embedded && (
+        {frame === "page" && (
           <Link to="/" className="pdi-back-link">
             Back to portal
           </Link>
         )}
         {onLeave && (
           <button type="button" className="pdi-back-link" onClick={onLeave}>
-            QC Station
+            QC station
           </button>
         )}
-        {onLogout && (
-          <button type="button" className="pdi-back-link pdi-toolbar-logout" onClick={onLogout}>
-            Sign out
+        <div className="pdi-toolbar-actions">
+          {onLogout && (
+            <button type="button" className="pdi-back-link pdi-toolbar-logout" onClick={onLogout}>
+              Sign out
+            </button>
+          )}
+          <button
+            type="button"
+            className="pdi-print-button"
+            onClick={() => {
+              applyPdfTitle(meta)
+              mountPdiPrintHost()
+              window.print()
+            }}
+          >
+            Print / Save PDF
           </button>
-        )}
+        </div>
         <p className="pdi-source">
           {productStatus === "loading" && "Loading product master…"}
           {productStatus === "ready" &&
@@ -259,17 +276,6 @@ export function PdiPage({ embedded = false, token, onLeave, onLogout }) {
               : "Product Master has no parts yet. Add one there first.")}
           {productStatus !== "loading" && productStatus !== "ready" && productStatus !== "missing" && productStatus}
         </p>
-        <button
-          type="button"
-          className="pdi-print-button"
-          onClick={() => {
-            applyPdfTitle(meta)
-            mountPdiPrintHost()
-            window.print()
-          }}
-        >
-          Print / Save PDF
-        </button>
       </div>
 
       <article id="pdi-report" className="pdi-sheet">

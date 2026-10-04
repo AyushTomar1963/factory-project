@@ -6,13 +6,33 @@
   font-family: Calibri, "Segoe UI", sans-serif;
 }
 
+.pdi-page-framed {
+  min-height: 0;
+}
+
+.pdi-page-embedded {
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+}
+
 .pdi-toolbar {
   display: flex;
-  justify-content: flex-end;
+  flex-wrap: wrap;
+  justify-content: space-between;
   align-items: center;
   gap: 0.75rem;
   max-width: 72rem;
   margin: 0 auto 1rem;
+}
+
+.pdi-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-left: auto;
 }
 
 .pdi-back-link {
@@ -116,7 +136,8 @@
 }
 
 .pdi-source {
-  margin-right: auto;
+  flex: 1 1 100%;
+  margin: 0;
   color: #1f4e78;
   font-size: 0.85rem;
   font-weight: 700;

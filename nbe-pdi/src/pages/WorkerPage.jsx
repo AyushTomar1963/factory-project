@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { toast } from "sonner"
 import {
   DefectRemarkPanel,
@@ -14,14 +14,14 @@ import {
 import { ParameterRatings } from "../components/inspection/ParameterRatings"
 import { PartLoader } from "../components/inspection/PartLoader"
 import { StageSelector } from "../components/inspection/StageSelector"
-import { PageHeader, WorkerShell } from "../components/layout/Shell"
 import { Panel } from "../components/ui/qa-card"
 import { Spinner } from "../components/ui/spinner"
 import { useInspection } from "../hooks/useInspection"
+import { useSection } from "../hooks/useSection"
 import { PdiPage } from "./PdiPage"
 
 export function WorkerPage({ token, onLogout }) {
-  const [view, setView] = useState("qc")
+  const [view, setView] = useSection("view", ["qc", "pdi"], "qc")
   const inspection = useInspection(token)
 
   useEffect(() => {
@@ -49,37 +49,58 @@ export function WorkerPage({ token, onLogout }) {
     inspection.submitLog("YELLOW", finalRemark)
   }
 
-  if (view === "pdi") {
-    return (
-      <PdiPage
-        embedded
-        token={token}
-        onLeave={() => setView("qc")}
-        onLogout={onLogout}
-      />
-    )
-  }
-
   return (
-    <WorkerShell
-      header={
-        <PageHeader
-          eyebrow="Inspection"
-          title="QC Station"
-          onLogout={onLogout}
-          compact
-        />
-      }
-    >
-      <Panel>
-        <button
-          type="button"
-          onClick={() => setView("pdi")}
-          className="mb-5 flex w-full items-center justify-between rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-left text-sm font-bold text-brand-800 hover:bg-brand-100"
+    <div className="min-h-svh">
+      <header className="sticky top-0 z-30 border-b border-white/15 bg-brand-800/95 text-white backdrop-blur">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 pt-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-brand-100">
+              Inspection
+            </p>
+            <h1 className="truncate text-lg font-black">
+              {view === "pdi" ? "Pre-dispatch" : "QC station"}
+            </h1>
+          </div>
+          <button
+            type="button"
+            onClick={onLogout}
+            className="min-h-11 shrink-0 rounded-lg border border-white/30 bg-white/10 px-3 text-xs font-semibold"
+          >
+            Sign out
+          </button>
+        </div>
+        <nav
+          aria-label="Inspection sections"
+          className="mx-auto grid w-full max-w-6xl grid-cols-2 gap-1 px-4 pt-3 pb-3"
         >
-          Pre-Dispatch inspection
-          <span aria-hidden="true">→</span>
-        </button>
+          <button
+            type="button"
+            aria-current={view === "qc" ? "page" : undefined}
+            onClick={() => setView("qc")}
+            className={`min-h-11 rounded-lg px-3 text-sm font-bold ${
+              view === "qc" ? "bg-white text-brand-800" : "text-white hover:bg-white/10"
+            }`}
+          >
+            QC station
+          </button>
+          <button
+            type="button"
+            aria-current={view === "pdi" ? "page" : undefined}
+            onClick={() => setView("pdi")}
+            className={`min-h-11 rounded-lg px-3 text-sm font-bold ${
+              view === "pdi" ? "bg-white text-brand-800" : "text-white hover:bg-white/10"
+            }`}
+          >
+            Pre-dispatch
+          </button>
+        </nav>
+      </header>
+
+      {view === "pdi" ? (
+        <PdiPage layout="framed" token={token} />
+      ) : (
+        <div className="flex justify-center px-4 pt-4 pb-8">
+      <Panel className="rounded-2xl border">
         <InspectionStepper
           partNumber={inspection.partNumber}
           intakeSubmitted={inspection.intakeSubmitted}
@@ -180,6 +201,8 @@ export function WorkerPage({ token, onLogout }) {
           </div>
         )}
       </Panel>
+        </div>
+      )}
 
       <InspectionReportDialog
         open={inspection.reportOpen}
@@ -188,6 +211,6 @@ export function WorkerPage({ token, onLogout }) {
         onClose={() => inspection.setReportOpen(false)}
         onNewInspection={inspection.closeReportAndReset}
       />
-    </WorkerShell>
+    </div>
   )
 }

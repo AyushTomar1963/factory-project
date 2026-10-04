@@ -41,12 +41,44 @@ import {
 } from "@/components/ui/sidebar"
 import { BrandLogo } from "../layout/Shell"
 import { getStoreTab, STORE_TABS } from "../../constants/store"
+import { useSidebar } from "@/components/ui/sidebar"
 
 const NAV_ICONS = {
   bins: LayoutGrid,
   inward: Package,
   issue: ArrowLeftRight,
   reports: ClipboardList,
+}
+
+function StoreSectionNav({ activeTab, onTabChange }) {
+  const { isMobile, setOpenMobile } = useSidebar()
+
+  const choose = (id) => {
+    onTabChange(id)
+    if (isMobile) setOpenMobile(false)
+  }
+
+  return (
+    <SidebarMenu>
+      {STORE_TABS.map((tab) => {
+        const Icon = NAV_ICONS[tab.id]
+        return (
+          <SidebarMenuItem key={tab.id}>
+            <SidebarMenuButton
+              type="button"
+              isActive={activeTab === tab.id}
+              onClick={() => choose(tab.id)}
+              tooltip={tab.label}
+              className="min-h-11"
+            >
+              <Icon />
+              <span>{tab.label}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        )
+      })}
+    </SidebarMenu>
+  )
 }
 
 export function StoreAppShell({
@@ -80,23 +112,7 @@ export function StoreAppShell({
           <SidebarGroup>
             <SidebarGroupLabel>Store operations</SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu>
-                {STORE_TABS.map((tab) => {
-                  const Icon = NAV_ICONS[tab.id]
-                  return (
-                    <SidebarMenuItem key={tab.id}>
-                      <SidebarMenuButton
-                        isActive={activeTab === tab.id}
-                        onClick={() => onTabChange(tab.id)}
-                        tooltip={tab.label}
-                      >
-                        <Icon />
-                        <span>{tab.label}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  )
-                })}
-              </SidebarMenu>
+              <StoreSectionNav activeTab={activeTab} onTabChange={onTabChange} />
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
@@ -104,7 +120,7 @@ export function StoreAppShell({
         <SidebarFooter className="border-t border-sidebar-border">
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton onClick={onLogout} tooltip="Sign out">
+              <SidebarMenuButton type="button" onClick={onLogout} tooltip="Sign out" className="min-h-11">
                 <LogOut />
                 <span>Sign out</span>
               </SidebarMenuButton>
@@ -121,8 +137,14 @@ export function StoreAppShell({
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem className="hidden md:inline-flex">
-                <Warehouse className="mr-1 inline size-3.5" />
-                Store
+                <button
+                  type="button"
+                  onClick={() => onTabChange("bins")}
+                  className="inline-flex min-h-11 items-center text-muted-foreground hover:text-foreground"
+                >
+                  <Warehouse className="mr-1 inline size-3.5" />
+                  Store
+                </button>
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:inline-flex" />
               <BreadcrumbItem>

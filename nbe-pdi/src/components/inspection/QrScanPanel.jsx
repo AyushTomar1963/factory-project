@@ -7,7 +7,7 @@ import {
 import { partNumberFromScan } from "../../lib/part-scan"
 import "../../qr-scan.css"
 
-const CAMERA_KEY = "nbe-qr-camera"
+const SIDE_KEY = "nbe-qr-side"
 
 let cameraQueue = Promise.resolve()
 
@@ -26,16 +26,32 @@ function cameraMessage(error) {
     return "Camera permission was blocked. Allow the camera, or upload a photo of the code."
   }
   if (/notfound|no camera|device not found|requested device not found/i.test(text)) {
-    return "No camera was found. Upload a photo of the code instead."
+    return "That camera side was not found. Try the other side, or upload a photo."
   }
   if (/notreadable|in use|could not start|abort|trackstart/i.test(text)) {
     return "The camera is busy. Close other apps using it, or upload a photo of the code."
   }
-  return "The camera did not start. Upload a photo of the code instead."
+  return "The camera did not start. Try the other side, or upload a photo of the code."
 }
 
 function isPermissionError(error) {
   return /notallowed|permission|denied/i.test(String(error?.message || error || ""))
+}
+
+function rememberedSide() {
+  try {
+    return sessionStorage.getItem(SIDE_KEY) === "front" ? "front" : "back"
+  } catch {
+    return "back"
+  }
+}
+
+function rememberSide(side) {
+  try {
+    sessionStorage.setItem(SIDE_KEY, side)
+  } catch {
+    /* private mode */
+  }
 }
 
 async function safeStop(scanner) {
@@ -74,51 +90,28 @@ function waitForWidth(element) {
   })
 }
 
-function rememberCamera(id) {
-  if (!id) return
-  try {
-    sessionStorage.setItem(CAMERA_KEY, id)
-  } catch {
-    /* private mode */
-  }
+function matchesSide(label, side) {
+  const text = label || ""
+  if (side === "back") return /back|rear|environment/i.test(text)
+  return /front|user|face|selfie/i.test(text)
 }
 
-function rememberedCamera() {
-  try {
-    return sessionStorage.getItem(CAMERA_KEY) || ""
-  } catch {
-    return ""
-  }
+function attemptsForSide(cameras, side) {
+  const labeled = cameras
+    .filter((camera) => camera.id && matchesSide(camera.label, side))
+    .map((camera) => camera.id)
+  const facing = side === "front" ? { facingMode: "user" } : { facingMode: "environment" }
+  return [...labeled, facing]
 }
 
-async function startBestCamera(scanner, preferredId, onCode, isActive) {
-  let cameras = []
-  try {
-    cameras = await Html5Qrcode.getCameras()
-  } catch (error) {
-    if (isPermissionError(error) || !isActive()) throw error
-  }
-  if (!isActive()) return { started: false, cameras }
-
-  const ordered = []
-  const preferred = cameras.find((camera) => camera.id === preferredId)
-  const back = cameras.find((camera) => /back|rear|environment/i.test(camera.label || ""))
-  if (preferred) ordered.push(preferred.id)
-  if (back && !ordered.includes(back.id)) ordered.push(back.id)
-  for (const camera of cameras) {
-    if (camera.id && !ordered.includes(camera.id)) ordered.push(camera.id)
-  }
-  const attempts = ordered.length
-    ? ordered
-    : [{ facingMode: "environment" }, { facingMode: "user" }]
-
+async function startAttempts(scanner, attempts, onCode, isActive) {
   let lastError = null
   for (const camera of attempts) {
-    if (!isActive()) return { started: false, cameras }
+    if (!isActive()) return false
     try {
       await scanner.start(
         camera,
-        { fps: 10 },
+        { fps: 10, disableFlip: false },
         (decoded) => {
           if (isActive()) onCode(decoded)
         },
@@ -126,20 +119,62 @@ async function startBestCamera(scanner, preferredId, onCode, isActive) {
       )
       if (!isActive()) {
         await safeStop(scanner)
-        return { started: false, cameras }
+        return false
       }
-      return {
-        started: true,
-        cameras,
-        id: typeof camera === "string" ? camera : "",
-      }
+      return true
     } catch (error) {
       lastError = error
       await safeStop(scanner)
-      if (isPermissionError(error)) break
+      if (isPermissionError(error)) throw error
     }
   }
   throw lastError || new Error("camera")
+}
+
+async function startCameraSide(scanner, side, onCode, isActive, allowFallback) {
+  let cameras = []
+  try {
+    cameras = await Html5Qrcode.getCameras()
+  } catch (error) {
+    if (isPermissionError(error)) throw error
+  }
+  if (!isActive()) return { started: false, side }
+
+  try {
+    const started = await startAttempts(
+      scanner,
+      attemptsForSide(cameras, side),
+      onCode,
+      isActive,
+    )
+    if (started) return { started: true, side }
+  } catch (error) {
+    if (!allowFallback || isPermissionError(error) || !isActive()) throw error
+  }
+
+  if (!allowFallback || !isActive()) return { started: false, side }
+  const other = side === "back" ? "front" : "back"
+  const started = await startAttempts(
+    scanner,
+    attemptsForSide(cameras, other),
+    onCode,
+    isActive,
+  )
+  return { started, side: started ? other : side }
+}
+
+async function mirrorFile(file) {
+  const bitmap = await createImageBitmap(file)
+  const canvas = document.createElement("canvas")
+  canvas.width = bitmap.width
+  canvas.height = bitmap.height
+  const context = canvas.getContext("2d")
+  context.translate(canvas.width, 0)
+  context.scale(-1, 1)
+  context.drawImage(bitmap, 0, 0)
+  bitmap.close?.()
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"))
+  return new File([blob], "mirrored-code.png", { type: "image/png" })
 }
 
 export function QrScanPanel({ onDetected }) {
@@ -147,12 +182,12 @@ export function QrScanPanel({ onDetected }) {
   const scannerRef = useRef(null)
   const onDetectedRef = useRef(onDetected)
   const handledRef = useRef(false)
-  const [status, setStatus] = useState("Starting camera…")
-  const [cameras, setCameras] = useState([])
-  const [activeId, setActiveId] = useState("")
-  const [session, setSession] = useState(0)
-  const requestedId = useRef(rememberedCamera())
   const noticeRef = useRef("")
+  const requestedSide = useRef(rememberedSide())
+  const fallbackRef = useRef(true)
+  const [status, setStatus] = useState("Starting camera…")
+  const [side, setSide] = useState(rememberedSide)
+  const [session, setSession] = useState(0)
 
   useEffect(() => {
     onDetectedRef.current = onDetected
@@ -178,27 +213,30 @@ export function QrScanPanel({ onDetected }) {
     const isActive = () => !disposed
     const scanner = new Html5Qrcode(elementId, scannerConfig())
     scannerRef.current = scanner
+    const chosen = requestedSide.current === "front" ? "front" : "back"
 
     enqueue(async () => {
       if (disposed) return
-      setStatus("Starting camera…")
+      setStatus(chosen === "front" ? "Starting the front camera…" : "Starting the back camera…")
       await waitForWidth(element)
       if (disposed) return
       try {
-        const result = await startBestCamera(
+        const result = await startCameraSide(
           scanner,
-          requestedId.current,
+          chosen,
           finish,
           isActive,
+          fallbackRef.current,
         )
+        fallbackRef.current = false
         if (!result.started || disposed) return
-        setCameras(result.cameras)
-        setActiveId(result.id)
-        rememberCamera(result.id)
-        setStatus(
-          noticeRef.current ||
-            "Point the camera at the part label. The whole picture is scanned.",
-        )
+        setSide(result.side)
+        rememberSide(result.side)
+        requestedSide.current = result.side
+        const ready = result.side === "front"
+          ? "Point the front camera at the label. A mirrored code is read too."
+          : "Point the back camera at the label. A mirrored code is read too."
+        setStatus(noticeRef.current || ready)
         noticeRef.current = ""
       } catch (error) {
         if (!disposed) {
@@ -236,8 +274,11 @@ export function QrScanPanel({ onDetected }) {
       let accepted = false
       await enqueue(async () => {
         await safeStop(scanner)
-        const text = await scanner.scanFile(file, false)
-        accepted = finish(text)
+        try {
+          accepted = finish(await scanner.scanFile(file, false))
+        } catch {
+          accepted = finish(await scanner.scanFile(await mirrorFile(file), false))
+        }
       })
       if (!accepted && !handledRef.current) setSession((current) => current + 1)
     } catch {
@@ -249,36 +290,46 @@ export function QrScanPanel({ onDetected }) {
     }
   }
 
-  const onCamera = (event) => {
-    const id = event.target.value
-    requestedId.current = id
-    rememberCamera(id)
-    setActiveId(id)
+  const chooseSide = (next) => {
+    fallbackRef.current = false
+    requestedSide.current = next
+    rememberSide(next)
+    setSide(next)
     setSession((current) => current + 1)
   }
 
   return (
     <div className="space-y-3">
       <div id={elementId} className="qr-view" />
+      <div className="grid grid-cols-2 gap-2" role="group" aria-label="Camera side">
+        <button
+          type="button"
+          aria-pressed={side === "back"}
+          onClick={() => chooseSide("back")}
+          className={`min-h-11 rounded-lg px-3 text-sm font-bold ${
+            side === "back"
+              ? "bg-brand-700 text-white"
+              : "border border-brand-200 bg-white text-brand-800"
+          }`}
+        >
+          Back camera
+        </button>
+        <button
+          type="button"
+          aria-pressed={side === "front"}
+          onClick={() => chooseSide("front")}
+          className={`min-h-11 rounded-lg px-3 text-sm font-bold ${
+            side === "front"
+              ? "bg-brand-700 text-white"
+              : "border border-brand-200 bg-white text-brand-800"
+          }`}
+        >
+          Front camera
+        </button>
+      </div>
       <p className="text-sm font-semibold text-brand-900" data-qr-status>
         {status}
       </p>
-      {cameras.length > 1 && (
-        <label className="block text-sm font-semibold text-brand-900">
-          Camera
-          <select
-            value={activeId}
-            onChange={onCamera}
-            className="mt-1 min-h-11 w-full rounded-lg border border-brand-200 bg-white px-3 text-sm"
-          >
-            {cameras.map((camera, index) => (
-              <option key={camera.id} value={camera.id}>
-                {camera.label || `Camera ${index + 1}`}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
       <label className="flex min-h-11 cursor-pointer items-center justify-center rounded-lg border border-brand-200 bg-brand-50 px-3 text-sm font-bold text-brand-800">
         Upload a photo of the code
         <input type="file" accept="image/*" className="sr-only" onChange={onFile} />

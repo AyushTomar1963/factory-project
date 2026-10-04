@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/sidebar"
 import { BrandLogo } from "../layout/Shell"
 import { getAdminTab, ADMIN_TABS } from "../../constants/admin"
+import { useSidebar } from "@/components/ui/sidebar"
 
 const NAV_ICONS = {
   dashboard: LayoutDashboard,
@@ -50,6 +51,37 @@ const NAV_ICONS = {
   users: Users,
   reports: ClipboardList,
   pdi: ClipboardCheck,
+}
+
+function AdminSectionNav({ activeTab, onTabChange }) {
+  const { isMobile, setOpenMobile } = useSidebar()
+
+  const choose = (id) => {
+    onTabChange(id)
+    if (isMobile) setOpenMobile(false)
+  }
+
+  return (
+    <SidebarMenu>
+      {ADMIN_TABS.map((tab) => {
+        const Icon = NAV_ICONS[tab.id]
+        return (
+          <SidebarMenuItem key={tab.id}>
+            <SidebarMenuButton
+              type="button"
+              isActive={activeTab === tab.id}
+              onClick={() => choose(tab.id)}
+              tooltip={tab.label}
+              className="min-h-11"
+            >
+              <Icon />
+              <span>{tab.label}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        )
+      })}
+    </SidebarMenu>
+  )
 }
 
 export function AdminAppShell({
@@ -83,23 +115,7 @@ export function AdminAppShell({
           <SidebarGroup>
             <SidebarGroupLabel>Operations</SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu>
-                {ADMIN_TABS.map((tab) => {
-                  const Icon = NAV_ICONS[tab.id]
-                  return (
-                    <SidebarMenuItem key={tab.id}>
-                      <SidebarMenuButton
-                        isActive={activeTab === tab.id}
-                        onClick={() => onTabChange(tab.id)}
-                        tooltip={tab.label}
-                      >
-                        <Icon />
-                        <span>{tab.label}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  )
-                })}
-              </SidebarMenu>
+              <AdminSectionNav activeTab={activeTab} onTabChange={onTabChange} />
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
@@ -107,7 +123,7 @@ export function AdminAppShell({
         <SidebarFooter className="border-t border-sidebar-border">
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton onClick={onLogout} tooltip="Sign out">
+              <SidebarMenuButton type="button" onClick={onLogout} tooltip="Sign out" className="min-h-11">
                 <LogOut />
                 <span>Sign out</span>
               </SidebarMenuButton>
@@ -124,7 +140,13 @@ export function AdminAppShell({
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem className="hidden md:inline-flex">
-                Admin
+                <button
+                  type="button"
+                  onClick={() => onTabChange("dashboard")}
+                  className="min-h-11 text-muted-foreground hover:text-foreground"
+                >
+                  Admin
+                </button>
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:inline-flex" />
               <BreadcrumbItem>
