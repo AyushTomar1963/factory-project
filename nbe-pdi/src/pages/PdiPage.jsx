@@ -361,6 +361,7 @@ export function PdiPage({ embedded = false, token, onLeave, onLogout }) {
                       )}
                       <td className="pdi-parameter">
                         <LineField
+                          multiline
                           label={`Parameter for ${parameter}`}
                           value={line.parameter}
                           onChange={(value) => setRowField(key, defaults, "parameter", value)}
@@ -368,6 +369,7 @@ export function PdiPage({ embedded = false, token, onLeave, onLogout }) {
                       </td>
                       <td className="pdi-spec">
                         <LineField
+                          multiline
                           label={`Specification for ${parameter}`}
                           value={line.specification}
                           onChange={(value) => setRowField(key, defaults, "specification", value)}
@@ -382,6 +384,7 @@ export function PdiPage({ embedded = false, token, onLeave, onLogout }) {
                       </td>
                       <td className="pdi-method">
                         <LineField
+                          multiline
                           label={`Inspection method for ${parameter}`}
                           value={line.method}
                           onChange={(value) => setRowField(key, defaults, "method", value)}
@@ -447,6 +450,7 @@ export function PdiPage({ embedded = false, token, onLeave, onLogout }) {
                       )}
                       <td className="pdi-parameter">
                         <LineField
+                          multiline
                           label={`Parameter for ${item.parameter}`}
                           value={line.parameter}
                           onChange={(value) => setRowField(key, defaults, "parameter", value)}
@@ -454,6 +458,7 @@ export function PdiPage({ embedded = false, token, onLeave, onLogout }) {
                       </td>
                       <td className="pdi-spec">
                         <LineField
+                          multiline
                           label={`Specification for ${item.parameter}`}
                           value={line.specification}
                           onChange={(value) => setRowField(key, defaults, "specification", value)}
@@ -468,6 +473,7 @@ export function PdiPage({ embedded = false, token, onLeave, onLogout }) {
                       </td>
                       <td className="pdi-method">
                         <LineField
+                          multiline
                           label={`Inspection method for ${item.parameter}`}
                           value={line.method}
                           onChange={(value) => setRowField(key, defaults, "method", value)}
