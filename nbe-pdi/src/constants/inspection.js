@@ -1,8 +1,6 @@
-const PRODUCTION_API_URL = "https://factory-project-2.onrender.com"
-
-export const API_BASE =
-  import.meta.env.VITE_API_URL?.trim() ||
-  (import.meta.env.DEV ? "" : PRODUCTION_API_URL)
+// Same-origin /api is forwarded to the existing Render service by vercel.json.
+// Calling Render directly is blocked in the browser (its CORS list rejects this site).
+export const API_BASE = import.meta.env.VITE_API_URL?.trim() || ""
 
 export const STORAGE_KEYS = {
   token: "nbeToken",
