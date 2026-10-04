@@ -267,7 +267,11 @@
 }
 
 #pdi-print-host {
-  display: none;
+  display: block;
+  position: absolute;
+  width: 277mm;
+  clip-path: inset(100%);
+  pointer-events: none;
 }
 
 @media print {
@@ -286,6 +290,9 @@
 
   #pdi-print-host {
     display: block !important;
+    position: static !important;
+    width: auto !important;
+    clip-path: none !important;
     background: #fff !important;
   }
 
@@ -312,17 +319,21 @@
   }
 
   #pdi-print-host .pdi-table {
+    width: 100%;
     min-width: 0;
+    table-layout: fixed;
+    font-size: 8pt;
   }
 
-  #pdi-print-host .pdi-table,
+  #pdi-print-host .pdi-table thead {
+    display: table-header-group;
+  }
+
   #pdi-print-host .pdi-table tr,
-  #pdi-print-host .pdi-table td,
-  #pdi-print-host .pdi-section {
-    break-inside: auto;
-    page-break-inside: auto;
-    break-before: auto;
-    page-break-before: auto;
+  #pdi-print-host .pdi-table th,
+  #pdi-print-host .pdi-table td {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   #pdi-print-host .pdi-meta {

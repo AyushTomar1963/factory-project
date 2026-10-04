@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Link } from "react-router-dom"
 import { fetchProducts } from "../api/admin"
 import {
@@ -36,6 +36,49 @@ function syncControlValues(root) {
   })
 }
 
+function pdfTitle(meta) {
+  const now = new Date()
+  const date = [
+    String(now.getDate()).padStart(2, "0"),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    now.getFullYear(),
+  ].join("-")
+  const part = String(meta?.partNo || "")
+    .trim()
+    .replace(/[^\w.-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+  return part ? `NBE-PDI-${part}-${date}` : `NBE-PDI-${date}`
+}
+
+let previousDocumentTitle = ""
+
+function applyPdfTitle(meta) {
+  if (!previousDocumentTitle) previousDocumentTitle = document.title
+  document.title = pdfTitle(meta)
+}
+
+function restorePdfTitle() {
+  if (!previousDocumentTitle) return
+  document.title = previousDocumentTitle
+  previousDocumentTitle = ""
+}
+
+function flattenSectionCells(root) {
+  root.querySelectorAll("td.pdi-section[rowspan]").forEach((cell) => {
+    const span = Number(cell.getAttribute("rowspan")) || 1
+    const label = cell.textContent
+    cell.removeAttribute("rowspan")
+    let row = cell.parentElement?.nextElementSibling
+    for (let index = 1; index < span && row; index += 1) {
+      const copy = cell.cloneNode(true)
+      copy.textContent = label
+      row.insertBefore(copy, row.firstChild)
+      row = row.nextElementSibling
+    }
+  })
+}
+
 function mountPdiPrintHost() {
   const source = document.getElementById("pdi-report")
   if (!source) return
@@ -47,6 +90,14 @@ function mountPdiPrintHost() {
   host.id = PRINT_HOST_ID
   host.setAttribute("aria-hidden", "true")
   const clone = source.cloneNode(true)
+  flattenSectionCells(clone)
+
+  clone.querySelectorAll("input, textarea").forEach((field) => {
+    const span = document.createElement("span")
+    span.className = "pdi-filled-value"
+    span.textContent = field.value
+    field.replaceWith(span)
+  })
 
   clone.querySelectorAll("select").forEach((select) => {
     const chosen = select.options[select.selectedIndex]
@@ -81,6 +132,8 @@ export function PdiPage({ embedded = false, token }) {
   const [productStatus, setProductStatus] = useState(token ? "loading" : "missing")
 
   const selectedProduct = products.find((product) => product.part_number === meta.partNo)
+  const metaRef = useRef(meta)
+  metaRef.current = meta
 
   useEffect(() => {
     if (!token) return undefined
@@ -117,8 +170,14 @@ export function PdiPage({ embedded = false, token }) {
   }
 
   useEffect(() => {
-    const onBeforePrint = () => mountPdiPrintHost()
-    const onAfterPrint = () => removePdiPrintHost()
+    const onBeforePrint = () => {
+      applyPdfTitle(metaRef.current)
+      mountPdiPrintHost()
+    }
+    const onAfterPrint = () => {
+      restorePdfTitle()
+      removePdiPrintHost()
+    }
     window.addEventListener("beforeprint", onBeforePrint)
     window.addEventListener("afterprint", onAfterPrint)
     return () => {
@@ -148,6 +207,7 @@ export function PdiPage({ embedded = false, token }) {
           type="button"
           className="pdi-print-button"
           onClick={() => {
+            applyPdfTitle(meta)
             mountPdiPrintHost()
             window.print()
           }}
