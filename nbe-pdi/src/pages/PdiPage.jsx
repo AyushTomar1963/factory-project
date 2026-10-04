@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { Link } from "react-router-dom"
-import { fetchProducts } from "../api/admin"
+import { fetchPdiProducts } from "../api/inspection"
 import {
   PDI_COMPANY,
   PDI_METADATA_ROWS,
@@ -134,7 +134,7 @@ function masterKey(index) {
   return `master-${index}`
 }
 
-export function PdiPage({ embedded = false, token }) {
+export function PdiPage({ embedded = false, token, onLeave, onLogout }) {
   const [meta, setMeta] = useState(initialMeta)
   const [observations, setObservations] = useState({})
   const [remarks, setRemarks] = useState("")
@@ -152,7 +152,7 @@ export function PdiPage({ embedded = false, token }) {
   useEffect(() => {
     if (!token) return undefined
     let cancelled = false
-    fetchProducts(token)
+    fetchPdiProducts(token)
       .then((rows) => {
         if (cancelled) return
         setProducts(Array.isArray(rows) ? rows : [])
@@ -208,6 +208,16 @@ export function PdiPage({ embedded = false, token }) {
           <Link to="/" className="pdi-back-link">
             Back to portal
           </Link>
+        )}
+        {onLeave && (
+          <button type="button" className="pdi-back-link" onClick={onLeave}>
+            QC Station
+          </button>
+        )}
+        {onLogout && (
+          <button type="button" className="pdi-back-link pdi-toolbar-logout" onClick={onLogout}>
+            Sign out
+          </button>
         )}
         <p className="pdi-source">
           {productStatus === "loading" && "Loading product master…"}

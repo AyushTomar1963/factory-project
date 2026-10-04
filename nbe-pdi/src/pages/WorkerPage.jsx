@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import {
   DefectRemarkPanel,
@@ -18,8 +18,10 @@ import { PageHeader, WorkerShell } from "../components/layout/Shell"
 import { Panel } from "../components/ui/qa-card"
 import { Spinner } from "../components/ui/spinner"
 import { useInspection } from "../hooks/useInspection"
+import { PdiPage } from "./PdiPage"
 
 export function WorkerPage({ token, onLogout }) {
+  const [view, setView] = useState("qc")
   const inspection = useInspection(token)
 
   useEffect(() => {
@@ -47,6 +49,17 @@ export function WorkerPage({ token, onLogout }) {
     inspection.submitLog("YELLOW", finalRemark)
   }
 
+  if (view === "pdi") {
+    return (
+      <PdiPage
+        embedded
+        token={token}
+        onLeave={() => setView("qc")}
+        onLogout={onLogout}
+      />
+    )
+  }
+
   return (
     <WorkerShell
       header={
@@ -59,6 +72,14 @@ export function WorkerPage({ token, onLogout }) {
       }
     >
       <Panel>
+        <button
+          type="button"
+          onClick={() => setView("pdi")}
+          className="mb-5 flex w-full items-center justify-between rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-left text-sm font-bold text-brand-800 hover:bg-brand-100"
+        >
+          Pre-Dispatch inspection
+          <span aria-hidden="true">→</span>
+        </button>
         <InspectionStepper
           partNumber={inspection.partNumber}
           intakeSubmitted={inspection.intakeSubmitted}

@@ -26,6 +26,10 @@
   text-decoration: underline;
 }
 
+.pdi-toolbar-logout {
+  margin-right: 0;
+}
+
 .pdi-print-button {
   display: inline-flex;
   align-items: center;

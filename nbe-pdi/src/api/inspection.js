@@ -1,5 +1,14 @@
 import { apiFetch } from "./client"
 
+export async function fetchPdiProducts(token) {
+  try {
+    return await apiFetch("/api/products", { token })
+  } catch (error) {
+    if (error.status !== 404) throw error
+  }
+  return apiFetch("/api/admin/products", { token })
+}
+
 export function fetchPartSpec(token, partNumber) {
   return apiFetch(`/api/get-spec/${encodeURIComponent(partNumber)}`, { token })
 }
