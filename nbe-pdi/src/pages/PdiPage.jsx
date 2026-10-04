@@ -160,7 +160,11 @@ export function PdiPage({ embedded = false, token, onLeave, onLogout }) {
       })
       .catch((error) => {
         if (cancelled) return
-        setProductStatus(error.message || "Could not load product master")
+        setProductStatus(
+          error.status === 403
+            ? "Product list is still admin-only on the live API."
+            : error.message || "Could not load product master",
+        )
       })
     return () => {
       cancelled = true
