@@ -353,6 +353,7 @@ export function PdiPage({ embedded = false, token, onLeave, onLogout }) {
                       {itemIndex === 0 && (
                         <td className="pdi-section" rowSpan={extraParameters.length}>
                           <LineField
+                            multiline
                             label="Section"
                             value={line.section}
                             onChange={(value) => setRowField(key, defaults, "section", value)}
@@ -442,6 +443,7 @@ export function PdiPage({ embedded = false, token, onLeave, onLogout }) {
                       {itemIndex === 0 && (
                         <td className="pdi-section" rowSpan={section.items.length}>
                           <LineField
+                            multiline
                             label={`Section ${section.title}`}
                             value={line.section}
                             onChange={(value) => setRowField(key, defaults, "section", value)}

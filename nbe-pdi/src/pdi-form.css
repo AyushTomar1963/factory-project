@@ -232,6 +232,7 @@
 }
 
 .pdi-section .pdi-cell-input {
+  min-height: 4.5rem;
   color: #1f4e78;
   font-weight: 700;
   text-align: center;
@@ -247,6 +248,10 @@
 
 .pdi-line-remark {
   display: block;
+  resize: none;
+}
+
+.pdi-remark-cell .pdi-line-remark {
   resize: vertical;
 }
 
