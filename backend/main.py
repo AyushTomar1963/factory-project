@@ -334,11 +334,21 @@ def create_product(req: ProductCreate, db: Session = Depends(get_db),
     db.add(product); db.commit()
     return {"message": f"Product '{req.part_number}' created"}
 
-@app.get("/api/admin/products")
-def list_products(db: Session = Depends(get_db), current_user=Depends(require_admin)):
+def active_product_rows(db: Session):
     products = db.query(Product).filter(Product.is_active == True).all()
     return [{"part_number": p.part_number, "part_name": p.part_name,
              "group": p.group_name, "parameters": p.parameters} for p in products]
+
+
+@app.get("/api/products")
+def list_products_for_station(db: Session = Depends(get_db),
+                              current_user=Depends(get_current_user)):
+    return active_product_rows(db)
+
+
+@app.get("/api/admin/products")
+def list_products(db: Session = Depends(get_db), current_user=Depends(require_admin)):
+    return active_product_rows(db)
 
 class ProductUpdate(BaseModel):
     part_name: Optional[str] = None
