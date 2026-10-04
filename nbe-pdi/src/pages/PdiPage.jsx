@@ -5,9 +5,10 @@ import {
   PDI_COMPANY,
   PDI_METADATA_ROWS,
   PDI_OBSERVATIONS,
-  PDI_SECTIONS,
   PDI_TITLE,
+  extraProductParameters,
   pdiItemKey,
+  pdiSectionsForProduct,
 } from "../pdi"
 import "../pdi-form.css"
 
@@ -132,6 +133,8 @@ export function PdiPage({ embedded = false, token }) {
   const [productStatus, setProductStatus] = useState(token ? "loading" : "missing")
 
   const selectedProduct = products.find((product) => product.part_number === meta.partNo)
+  const reportSections = pdiSectionsForProduct(selectedProduct?.parameters)
+  const extraParameters = extraProductParameters(selectedProduct?.parameters)
   const metaRef = useRef(meta)
   metaRef.current = meta
 
@@ -271,14 +274,14 @@ export function PdiPage({ embedded = false, token }) {
               </tr>
             </thead>
             <tbody>
-              {selectedProduct?.parameters?.length > 0 &&
-                selectedProduct.parameters.map((parameter, itemIndex) => {
+              {extraParameters.length > 0 &&
+                extraParameters.map((parameter, itemIndex) => {
                   const key = masterKey(itemIndex)
                   const observation = observations[key] || ""
                   return (
                     <tr key={key}>
                       {itemIndex === 0 && (
-                        <td className="pdi-section" rowSpan={selectedProduct.parameters.length}>
+                        <td className="pdi-section" rowSpan={extraParameters.length}>
                           {selectedProduct.group
                             ? `Product master · ${selectedProduct.group}`
                             : "Product master"}
@@ -317,7 +320,7 @@ export function PdiPage({ embedded = false, token }) {
                     </tr>
                   )
                 })}
-              {PDI_SECTIONS.map((section, sectionIndex) =>
+              {reportSections.map((section, sectionIndex) =>
                 section.items.map((item, itemIndex) => {
                   const key = pdiItemKey(sectionIndex, itemIndex)
                   const observation = observations[key] || ""

@@ -161,3 +161,29 @@ export const PDI_SECTIONS = [
 export function pdiItemKey(sectionIndex, itemIndex) {
   return `${sectionIndex}-${itemIndex}`
 }
+
+export function pdiTemplateParameters() {
+  return PDI_SECTIONS.flatMap((section) => section.items.map((item) => item.parameter))
+}
+
+const PDI_TEMPLATE_NAMES = new Set(pdiTemplateParameters())
+
+export function isPdiTemplateParameter(name) {
+  return PDI_TEMPLATE_NAMES.has(name)
+}
+
+export function pdiSectionsForProduct(parameters) {
+  const saved = Array.isArray(parameters) ? parameters : []
+  const included = saved.filter((name) => PDI_TEMPLATE_NAMES.has(name))
+  if (!included.length) return PDI_SECTIONS
+  const selected = new Set(included)
+  return PDI_SECTIONS.map((section) => ({
+    ...section,
+    items: section.items.filter((item) => selected.has(item.parameter)),
+  })).filter((section) => section.items.length)
+}
+
+export function extraProductParameters(parameters) {
+  const saved = Array.isArray(parameters) ? parameters : []
+  return saved.filter((name) => !PDI_TEMPLATE_NAMES.has(name))
+}

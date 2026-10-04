@@ -92,7 +92,7 @@ export function ProductMasterPanel({ token }) {
 
       <SectionCard
         title="Product master"
-        description="Define parts and the inspection parameters your floor team will rate on each lot."
+        description="Parts saved here fill the pre-dispatch sheet. A new part already carries the full checklist."
       >
         {loading ? (
           <p className="text-gray-500 font-semibold">Loading products...</p>
@@ -109,8 +109,8 @@ export function ProductMasterPanel({ token }) {
         title={editing ? `Edit ${editing.part_number}` : "Add new product"}
         description={
           editing
-            ? "Update the part name, group, or inspection parameters."
-            : "Create a part number workers can scan. Parameters become the rating checklist on the floor."
+            ? "Part details stay editable. The pre-dispatch lines stay on the part unless you open the template and clear one."
+            : "Enter the part number and name. The pre-dispatch template is already included, so you do not type each check."
         }
         action={
           editing && (

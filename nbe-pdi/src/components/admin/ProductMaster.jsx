@@ -1,14 +1,79 @@
 import { useState } from "react"
 import { ScrollTable } from "@/components/ui/scroll-table"
+import { PDI_SECTIONS, pdiTemplateParameters, isPdiTemplateParameter } from "../../pdi"
 import { Button } from "../ui/qa-button"
 import { FormField, Input } from "../ui/FormField"
 
-export function ParameterEditor({ parameters, onChange }) {
+const TEMPLATE_PARAMETERS = pdiTemplateParameters()
+
+function TemplateChecks({ selected, onChange }) {
+  const selectedSet = new Set(selected)
+  const toggle = (parameter) => {
+    if (selectedSet.has(parameter)) onChange(selected.filter((name) => name !== parameter))
+    else onChange([...selected, parameter])
+  }
+
+  const allSelected = selected.length === TEMPLATE_PARAMETERS.length
+  const summary = allSelected
+    ? `Full pre-dispatch template is already on this part (${selected.length} checks). Open only to remove a line.`
+    : selected.length === 0
+      ? "No pre-dispatch lines selected. Open to put the template on this part."
+      : `${selected.length} of ${TEMPLATE_PARAMETERS.length} pre-dispatch checks. Open to change the lines.`
+
+  return (
+    <details className="rounded-lg border border-brand-100 bg-brand-50/40">
+      <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-brand-900">
+        {summary}
+      </summary>
+      <div className="max-h-80 space-y-4 overflow-y-auto border-t border-brand-100 px-4 py-3">
+        {!allSelected && (
+          <button
+            type="button"
+            className="text-xs font-bold text-brand-700 hover:underline"
+            onClick={() => onChange(TEMPLATE_PARAMETERS)}
+          >
+            Select every pre-dispatch line
+          </button>
+        )}
+        {PDI_SECTIONS.map((section) => (
+          <div key={section.title}>
+            <p className="text-xs font-bold uppercase tracking-wide text-brand-800">{section.title}</p>
+            <ul className="mt-1 space-y-1">
+              {section.items.map((item) => (
+                <li key={item.parameter}>
+                  <label className="flex items-start gap-2 text-sm text-gray-800">
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={selectedSet.has(item.parameter)}
+                      onChange={() => toggle(item.parameter)}
+                    />
+                    <span>
+                      {item.parameter}
+                      {item.specification ? (
+                        <span className="block text-xs text-gray-500">{item.specification}</span>
+                      ) : null}
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </details>
+  )
+}
+
+export function ParameterEditor({ parameters, onChange, allowEmpty = false }) {
   const [draft, setDraft] = useState("")
 
   const addParameter = () => {
     const trimmed = draft.trim()
-    if (!trimmed) return
+    if (!trimmed || isPdiTemplateParameter(trimmed)) {
+      setDraft("")
+      return
+    }
     if (parameters.some((p) => p.toLowerCase() === trimmed.toLowerCase())) {
       setDraft("")
       return
@@ -25,7 +90,7 @@ export function ParameterEditor({ parameters, onChange }) {
     <div className="space-y-3">
       <FormField label="Inspection parameters">
         <p className="text-xs text-gray-500 mb-2">
-          Add each dimension workers will rate (e.g. OD, ID, Length, Surface Finish).
+          Extra part-specific checks only. The pre-dispatch template is already included.
         </p>
         <div className="flex gap-2">
           <Input
@@ -64,7 +129,7 @@ export function ParameterEditor({ parameters, onChange }) {
             </li>
           ))}
         </ul>
-      ) : (
+      ) : allowEmpty ? null : (
         <p className="text-sm text-amber-700 font-semibold bg-amber-50 border border-amber-200 rounded-lg p-3">
           Add at least one parameter before saving.
         </p>
@@ -75,10 +140,14 @@ export function ParameterEditor({ parameters, onChange }) {
 
 export function ProductForm({ initial, onSubmit, onCancel, isSaving }) {
   const isEdit = Boolean(initial?.part_number)
+  const starting = initial?.parameters || []
   const [partNumber, setPartNumber] = useState(initial?.part_number || "")
   const [partName, setPartName] = useState(initial?.part_name || "")
   const [groupName, setGroupName] = useState(initial?.group || "")
-  const [parameters, setParameters] = useState(initial?.parameters || [])
+  const [templateChecks, setTemplateChecks] = useState(
+    isEdit ? starting.filter((name) => isPdiTemplateParameter(name)) : TEMPLATE_PARAMETERS,
+  )
+  const [extras, setExtras] = useState(starting.filter((name) => !isPdiTemplateParameter(name)))
   const [error, setError] = useState("")
 
   const handleSubmit = async (e) => {
@@ -92,8 +161,12 @@ export function ProductForm({ initial, onSubmit, onCancel, isSaving }) {
       setError("Part name is required.")
       return
     }
+    const parameters = [
+      ...TEMPLATE_PARAMETERS.filter((name) => templateChecks.includes(name)),
+      ...extras.filter((name) => !isPdiTemplateParameter(name)),
+    ]
     if (parameters.length === 0) {
-      setError("Add at least one inspection parameter.")
+      setError("Keep at least one pre-dispatch check.")
       return
     }
     try {
@@ -140,7 +213,8 @@ export function ProductForm({ initial, onSubmit, onCancel, isSaving }) {
           placeholder="e.g. Bushings, Rotors"
         />
       </FormField>
-      <ParameterEditor parameters={parameters} onChange={setParameters} />
+      <TemplateChecks selected={templateChecks} onChange={setTemplateChecks} />
+      <ParameterEditor parameters={extras} onChange={setExtras} allowEmpty />
       {error && (
         <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
           {error}
@@ -157,6 +231,35 @@ export function ProductForm({ initial, onSubmit, onCancel, isSaving }) {
         )}
       </div>
     </form>
+  )
+}
+
+function ProductChecks({ parameters = [] }) {
+  const templateCount = parameters.filter((name) => isPdiTemplateParameter(name)).length
+  const extras = parameters.filter((name) => !isPdiTemplateParameter(name))
+  if (templateCount === TEMPLATE_PARAMETERS.length && extras.length === 0) {
+    return (
+      <span className="text-xs font-semibold bg-brand-50 text-brand-800 px-2 py-0.5 rounded">
+        Pre-dispatch template
+      </span>
+    )
+  }
+  return (
+    <div className="flex flex-wrap gap-1 max-w-md">
+      {templateCount > 0 && (
+        <span className="text-xs font-semibold bg-brand-50 text-brand-800 px-2 py-0.5 rounded">
+          Pre-dispatch template ({templateCount})
+        </span>
+      )}
+      {extras.map((param) => (
+        <span
+          key={param}
+          className="text-xs font-semibold bg-gray-100 text-gray-700 px-2 py-0.5 rounded"
+        >
+          {param}
+        </span>
+      ))}
+    </div>
   )
 }
 
@@ -188,16 +291,7 @@ export function ProductsTable({ products, onEdit, onDeactivate }) {
               <td className="p-4 font-semibold text-gray-800">{product.part_name}</td>
               <td className="p-4 text-gray-600">{product.group || "—"}</td>
               <td className="p-4">
-                <div className="flex flex-wrap gap-1 max-w-md">
-                  {product.parameters?.map((param) => (
-                    <span
-                      key={param}
-                      className="text-xs font-semibold bg-gray-100 text-gray-700 px-2 py-0.5 rounded"
-                    >
-                      {param}
-                    </span>
-                  ))}
-                </div>
+                <ProductChecks parameters={product.parameters} />
               </td>
               <td className="p-4 whitespace-nowrap">
                 <div className="flex flex-wrap gap-3">
