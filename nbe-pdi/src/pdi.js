@@ -23,7 +23,7 @@ export const PDI_METADATA_ROWS = [
     { key: "poNo", label: "PO NO" },
   ],
   [
-    { key: "invoiceDate", label: "INVOICE DATE" },
+    { key: "invoiceDate", label: "INVOICE DATE", calendar: true },
     { key: "poQty", label: "PO QTY" },
   ],
 ]

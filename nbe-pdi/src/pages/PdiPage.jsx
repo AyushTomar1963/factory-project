@@ -37,19 +37,30 @@ function syncControlValues(root) {
   })
 }
 
-function pdfTitle(meta) {
-  const now = new Date()
-  const date = [
-    String(now.getDate()).padStart(2, "0"),
-    String(now.getMonth() + 1).padStart(2, "0"),
+function pdfTitle(meta, now = new Date()) {
+  const pad = (value) => String(value).padStart(2, "0")
+  const stamp = [
+    pad(now.getDate()),
+    pad(now.getMonth() + 1),
     now.getFullYear(),
+    pad(now.getHours()),
+    pad(now.getMinutes()),
+    pad(now.getSeconds()),
   ].join("-")
   const part = String(meta?.partNo || "")
     .trim()
     .replace(/[^\w.-]+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "")
-  return part ? `NBE-PDI-${part}-${date}` : `NBE-PDI-${date}`
+  return part ? `NBE-PDI-${part}-${stamp}` : `NBE-PDI-${stamp}`
+}
+
+function printedFieldValue(field) {
+  if (field.type === "date" && /^\d{4}-\d{2}-\d{2}$/.test(field.value)) {
+    const [year, month, day] = field.value.split("-")
+    return `${day}/${month}/${year}`
+  }
+  return field.value
 }
 
 let previousDocumentTitle = ""
@@ -96,7 +107,7 @@ function mountPdiPrintHost() {
   clone.querySelectorAll("input, textarea").forEach((field) => {
     const span = document.createElement("span")
     span.className = "pdi-filled-value"
-    span.textContent = field.value
+    span.textContent = printedFieldValue(field)
     field.replaceWith(span)
   })
 
@@ -250,6 +261,7 @@ export function PdiPage({ embedded = false, token }) {
                 </select>
               ) : (
                 <input
+                  type={field.calendar ? "date" : "text"}
                   value={meta[field.key]}
                   readOnly={field.key === "partDescription"}
                   onChange={(event) =>
@@ -370,8 +382,13 @@ export function PdiPage({ embedded = false, token }) {
         </div>
 
         <label className="pdi-remarks">
-          <span>Remarks</span>
-          <textarea value={remarks} onChange={(event) => setRemarks(event.target.value)} />
+          <span>REMARKS</span>
+          <textarea
+            aria-label="Remarks"
+            placeholder="Inspection remarks"
+            value={remarks}
+            onChange={(event) => setRemarks(event.target.value)}
+          />
         </label>
 
         <div className="pdi-signoff">

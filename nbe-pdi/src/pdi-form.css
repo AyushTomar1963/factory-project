@@ -133,6 +133,11 @@
   padding: 0.45rem 0.6rem;
 }
 
+.pdi-field input[type="date"] {
+  min-height: 2.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .pdi-field input:focus,
 .pdi-field select:focus,
 .pdi-remarks textarea:focus,
@@ -228,11 +233,18 @@
   flex-direction: column;
   gap: 0.35rem;
   margin-top: 1rem;
+  min-height: 6.5rem;
+  padding: 0.65rem 0.75rem;
+  border: 1.5px solid #1f4e78;
+  border-radius: 0.35rem;
+  background: #fff;
 }
 
 .pdi-remarks textarea {
   min-height: 4.5rem;
   resize: vertical;
+  border: none;
+  padding: 0.15rem 0;
 }
 
 .pdi-signoff {
@@ -342,19 +354,34 @@
   }
 
   #pdi-print-host .pdi-field input,
-  #pdi-print-host .pdi-remarks textarea,
   #pdi-print-host .pdi-sign input {
     min-height: 0;
     height: auto;
     line-height: 1.3;
   }
 
-  #pdi-print-host .pdi-field input,
-  #pdi-print-host .pdi-remarks textarea {
+  #pdi-print-host .pdi-field input {
     border: none;
     border-radius: 0;
     padding: 0;
     background: transparent;
+  }
+
+  #pdi-print-host .pdi-remarks {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: 1px solid #1f4e78;
+    min-height: 22mm;
+    margin-top: 4mm;
+    padding: 2mm 3mm;
+    background: #fff;
+  }
+
+  #pdi-print-host .pdi-remarks .pdi-filled-value {
+    display: block;
+    white-space: pre-wrap;
+    font-weight: 600;
+    min-height: 12mm;
   }
 
   #pdi-print-host .pdi-filled-value {
