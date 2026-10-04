@@ -219,11 +219,13 @@ export function PdiPage({ embedded = false, token }) {
                     <tr key={key}>
                       {itemIndex === 0 && (
                         <td className="pdi-section" rowSpan={selectedProduct.parameters.length}>
-                          Product master
+                          {selectedProduct.group
+                            ? `Product master · ${selectedProduct.group}`
+                            : "Product master"}
                         </td>
                       )}
                       <td className="pdi-parameter">{parameter}</td>
-                      <td className="pdi-spec">{selectedProduct.group || ""}</td>
+                      <td className="pdi-spec"></td>
                       <td className="pdi-freq">100%</td>
                       <td className="pdi-method">Product master</td>
                       <td className="pdi-observation-cell">
