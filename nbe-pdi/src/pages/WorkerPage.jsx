@@ -1,5 +1,4 @@
 import { useEffect } from "react"
-import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import {
   DefectRemarkPanel,
@@ -21,7 +20,6 @@ import { Spinner } from "../components/ui/spinner"
 import { useInspection } from "../hooks/useInspection"
 
 export function WorkerPage({ token, onLogout }) {
-  const navigate = useNavigate()
   const inspection = useInspection(token)
 
   useEffect(() => {
@@ -61,13 +59,6 @@ export function WorkerPage({ token, onLogout }) {
       }
     >
       <Panel>
-        <button
-          type="button"
-          onClick={() => navigate("/pdi")}
-          className="mb-4 flex min-h-11 w-full items-center justify-center rounded-lg border border-brand-200 bg-brand-50 px-3 text-sm font-semibold text-brand-800 hover:bg-brand-100"
-        >
-          Pre-dispatch inspection
-        </button>
         <InspectionStepper
           partNumber={inspection.partNumber}
           intakeSubmitted={inspection.intakeSubmitted}

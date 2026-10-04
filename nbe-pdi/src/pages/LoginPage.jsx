@@ -1,5 +1,4 @@
 import { useState } from "react"
-import { Link } from "react-router-dom"
 import { Eye, EyeOff, Factory, User } from "lucide-react"
 import {
   Card,
@@ -120,12 +119,6 @@ export function LoginPage({ onLogin, authError, isAuthenticating }) {
           </CardContent>
         </Card>
 
-        <Link
-          to="/pdi"
-          className="inline-flex min-h-11 items-center justify-center rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800"
-        >
-          Open pre-dispatch inspection
-        </Link>
         {DEV_HINT && (
           <div className="rounded-lg border border-dashed border-border bg-card p-3 text-center">
             <p className="mb-2 text-xs text-muted-foreground">Local demo accounts</p>

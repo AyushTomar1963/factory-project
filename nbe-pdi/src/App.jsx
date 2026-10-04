@@ -1,7 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes, useNavigate } from "react-router-dom"
 import { AdminDashboardPage } from "./pages/AdminDashboardPage"
 import { LoginPage } from "./pages/LoginPage"
-import { PdiPage } from "./pages/PdiPage"
 import { StorePage } from "./pages/StorePage"
 import { WorkerPage } from "./pages/WorkerPage"
 import { AppBackground } from "./components/effects/AppBackground"
@@ -29,7 +28,6 @@ function AppRoutes({ auth }) {
 
   return (
     <Routes>
-      <Route path="/pdi" element={<PdiPage />} />
       {!auth.isAuthenticated && (
         <Route
           path="*"

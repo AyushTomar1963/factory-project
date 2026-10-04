@@ -3,7 +3,6 @@ export const STORE_TABS = [
   { id: "inward", label: "Inward / GRN", title: "Material inward" },
   { id: "issue", label: "Issue Material", title: "Issue material" },
   { id: "reports", label: "Reports", title: "Store & IQC reports" },
-  { id: "pdi", label: "Pre-Dispatch", title: "Pre-dispatch inspection" },
 ]
 
 export function getStoreTab(id) {

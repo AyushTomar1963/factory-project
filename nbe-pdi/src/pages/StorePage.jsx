@@ -4,7 +4,6 @@ import { BinDashboard } from "../components/store/BinDashboard"
 import { InwardPage } from "../components/store/InwardPage"
 import { IssueMaterialForm } from "../components/store/IssueMaterialForm"
 import { ReportsPanel } from "../components/store/ReportsPanel"
-import { PdiPage } from "./PdiPage"
 
 export function StorePage({ token, username, onLogout }) {
   const [activeTab, setActiveTab] = useState("bins")
@@ -34,7 +33,6 @@ export function StorePage({ token, username, onLogout }) {
       )}
       {activeTab === "issue" && <IssueMaterialForm token={token} />}
       {activeTab === "reports" && <ReportsPanel token={token} defaultType="store" />}
-      {activeTab === "pdi" && <PdiPage embedded />}
     </StoreAppShell>
   )
 }

@@ -1,6 +1,5 @@
 import {
   ArrowLeftRight,
-  ClipboardCheck,
   ClipboardList,
   LayoutGrid,
   LogOut,
@@ -48,7 +47,6 @@ const NAV_ICONS = {
   inward: Package,
   issue: ArrowLeftRight,
   reports: ClipboardList,
-  pdi: ClipboardCheck,
 }
 
 export function StoreAppShell({
