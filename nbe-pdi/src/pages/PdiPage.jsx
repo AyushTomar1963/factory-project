@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
+import { fetchProducts } from "../api/admin"
 import {
   PDI_COMPANY,
   PDI_METADATA_ROWS,
@@ -50,10 +51,11 @@ function mountPdiPrintHost() {
   clone.querySelectorAll("select").forEach((select) => {
     const chosen = select.options[select.selectedIndex]
     const value = document.createElement("span")
-    value.className = "pdi-observation-value"
-    if (chosen?.value === "OK") value.classList.add("is-ok")
-    if (chosen?.value === "NOT OK") value.classList.add("is-not-ok")
-    value.textContent = chosen?.value ? chosen.textContent : ""
+    const isObservation = select.classList.contains("pdi-observation")
+    value.className = isObservation ? "pdi-observation-value" : "pdi-filled-value"
+    if (isObservation && chosen?.value === "OK") value.classList.add("is-ok")
+    if (isObservation && chosen?.value === "NOT OK") value.classList.add("is-not-ok")
+    value.textContent = chosen?.value ? (isObservation ? chosen.textContent : chosen.value) : ""
     select.replaceWith(value)
   })
 
@@ -65,12 +67,54 @@ function removePdiPrintHost() {
   document.getElementById(PRINT_HOST_ID)?.remove()
 }
 
-export function PdiPage({ embedded = false }) {
+function masterKey(index) {
+  return `master-${index}`
+}
+
+export function PdiPage({ embedded = false, token }) {
   const [meta, setMeta] = useState(initialMeta)
   const [observations, setObservations] = useState({})
   const [remarks, setRemarks] = useState("")
   const [checkedBy, setCheckedBy] = useState("")
   const [approvedBy, setApprovedBy] = useState("")
+  const [products, setProducts] = useState([])
+  const [productStatus, setProductStatus] = useState(token ? "loading" : "missing")
+
+  const selectedProduct = products.find((product) => product.part_number === meta.partNo)
+
+  useEffect(() => {
+    if (!token) return undefined
+    let cancelled = false
+    fetchProducts(token)
+      .then((rows) => {
+        if (cancelled) return
+        setProducts(Array.isArray(rows) ? rows : [])
+        setProductStatus("ready")
+      })
+      .catch((error) => {
+        if (cancelled) return
+        setProductStatus(error.message || "Could not load product master")
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [token])
+
+  const chooseProduct = (partNumber) => {
+    const product = products.find((item) => item.part_number === partNumber)
+    setMeta((current) => ({
+      ...current,
+      partNo: partNumber,
+      partDescription: product?.part_name || "",
+    }))
+    setObservations((current) => {
+      const next = { ...current }
+      Object.keys(next).forEach((key) => {
+        if (key.startsWith("master-")) delete next[key]
+      })
+      return next
+    })
+  }
 
   useEffect(() => {
     const onBeforePrint = () => mountPdiPrintHost()
@@ -92,6 +136,14 @@ export function PdiPage({ embedded = false }) {
             Back to portal
           </Link>
         )}
+        <p className="pdi-source">
+          {productStatus === "loading" && "Loading product master…"}
+          {productStatus === "ready" &&
+            (products.length
+              ? "Part number, description, and parameters come from Product Master."
+              : "Product Master has no parts yet. Add one there first.")}
+          {productStatus !== "loading" && productStatus !== "ready" && productStatus !== "missing" && productStatus}
+        </p>
         <button
           type="button"
           className="pdi-print-button"
@@ -119,12 +171,29 @@ export function PdiPage({ embedded = false }) {
           {PDI_METADATA_ROWS.flat().map((field) => (
             <label key={field.key} className="pdi-field">
               <span>{field.label}</span>
-              <input
-                value={meta[field.key]}
-                onChange={(event) =>
-                  setMeta((current) => ({ ...current, [field.key]: event.target.value }))
-                }
-              />
+              {field.key === "partNo" ? (
+                <select
+                  aria-label="Part number from product master"
+                  value={meta.partNo}
+                  onChange={(event) => chooseProduct(event.target.value)}
+                >
+                  <option value="">Select from product master</option>
+                  {products.map((product) => (
+                    <option key={product.part_number} value={product.part_number}>
+                      {product.part_number}
+                      {product.part_name ? ` — ${product.part_name}` : ""}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  value={meta[field.key]}
+                  readOnly={field.key === "partDescription"}
+                  onChange={(event) =>
+                    setMeta((current) => ({ ...current, [field.key]: event.target.value }))
+                  }
+                />
+              )}
             </label>
           ))}
         </div>
@@ -142,6 +211,50 @@ export function PdiPage({ embedded = false }) {
               </tr>
             </thead>
             <tbody>
+              {selectedProduct?.parameters?.length > 0 &&
+                selectedProduct.parameters.map((parameter, itemIndex) => {
+                  const key = masterKey(itemIndex)
+                  const observation = observations[key] || ""
+                  return (
+                    <tr key={key}>
+                      {itemIndex === 0 && (
+                        <td className="pdi-section" rowSpan={selectedProduct.parameters.length}>
+                          Product master
+                        </td>
+                      )}
+                      <td className="pdi-parameter">{parameter}</td>
+                      <td className="pdi-spec">{selectedProduct.group || ""}</td>
+                      <td className="pdi-freq">100%</td>
+                      <td className="pdi-method">Product master</td>
+                      <td className="pdi-observation-cell">
+                        <select
+                          className={`pdi-observation${
+                            observation === "OK"
+                              ? " is-ok"
+                              : observation === "NOT OK"
+                                ? " is-not-ok"
+                                : ""
+                          }`}
+                          aria-label={`Observation for ${parameter}`}
+                          value={observation}
+                          onChange={(event) =>
+                            setObservations((current) => ({
+                              ...current,
+                              [key]: event.target.value,
+                            }))
+                          }
+                        >
+                          <option value="">Select</option>
+                          {PDI_OBSERVATIONS.map((choice) => (
+                            <option key={choice} value={choice}>
+                              {choice}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    </tr>
+                  )
+                })}
               {PDI_SECTIONS.map((section, sectionIndex) =>
                 section.items.map((item, itemIndex) => {
                   const key = pdiItemKey(sectionIndex, itemIndex)

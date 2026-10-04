@@ -111,7 +111,15 @@
   color: #1f4e78;
 }
 
+.pdi-source {
+  margin-right: auto;
+  color: #1f4e78;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
 .pdi-field input,
+.pdi-field select,
 .pdi-remarks textarea,
 .pdi-sign input,
 .pdi-observation {
@@ -126,6 +134,7 @@
 }
 
 .pdi-field input:focus,
+.pdi-field select:focus,
 .pdi-remarks textarea:focus,
 .pdi-sign input:focus,
 .pdi-observation:focus {
@@ -335,6 +344,10 @@
     border-radius: 0;
     padding: 0;
     background: transparent;
+  }
+
+  #pdi-print-host .pdi-filled-value {
+    font-weight: 700;
   }
 
   #pdi-print-host .pdi-observation-value {
