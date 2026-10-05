@@ -1,5 +1,7 @@
 export const PDI_COMPANY = "NBE MOTORS PRIVATE LIMITED"
 export const PDI_TITLE = "PRE DISPATCH INSPECTION REPORT"
+export const COMPANY_ADDRESS_PARAMETER =
+  "COMPANY NAME & ADDRESS VERIFICATION No Spelling mistake & legibility issue"
 
 export const PDI_METADATA_ROWS = [
   [
@@ -50,13 +52,13 @@ export const PDI_SECTIONS = [
       [
         "Temperature Rise Test",
         "One Motors of each type & design, manufactured in three months",
-        "",
+        "100%",
         "TEST Bed",
       ],
       [
         "Full Load Test to determine Efficiency, Power Factor and Slip",
         "One Motors of each type & design, manufactured in three months",
-        "",
+        "100%",
         "TEST Bed",
       ],
     ],
@@ -70,21 +72,21 @@ export const PDI_SECTIONS = [
     items: [
       ["FRAME SIZE", "", "100%", "REF. CHART"],
       ["BEARING Make & SIZE", "", "100%", "As per validation"],
-      ["VARNISH Make of Varnish", "", "Batch", "As per validation"],
+      ["VARNISH Make of Varnish", "Batch", "100%", "As per validation"],
       [
         "Fitment of Fan Cover, bolts, studs, nuts, Eye bolts, lugs, plugs, flanges",
         "",
         "100%",
         "VISUAL",
       ],
-      ["EARTH PLATE", "", "BATCH", "VISUAL"],
+      ["EARTH PLATE", "BATCH", "100%", "VISUAL"],
     ],
   },
   {
     title: "4. PAINTING VERIFICATION",
     items: [
       ["PAINT COLOR SHADE Casting-Std", "", "100%", "Approved TEMPLATE"],
-      ["CED Coating thickness", "20 to 40 Micron", "", "DFT meter"],
+      ["CED Coating thickness", "20 to 40 Micron", "100%", "DFT meter"],
       ["Free from VISUAL DEFECTS (Painting-damage, rust etc)", "", "100%", "VISUAL"],
     ],
   },
@@ -94,7 +96,7 @@ export const PDI_SECTIONS = [
       ["DIRECTION OF ROTATION", "", "100%", "VISUAL"],
       ["NAME PLATE MODEL DETAILS", "", "100%", "VISUAL"],
       [
-        "KIRLOSKAR NAME & ADDRESS VERIFICATION No Spelling mistake & legibility issue",
+        COMPANY_ADDRESS_PARAMETER,
         "",
         "100%",
         "VISUAL",
@@ -138,12 +140,12 @@ export const PDI_SECTIONS = [
       ["MASTER BOX PLY", "", "100%", "No. of Ply"],
       ["INNER POLYTHENE COVER PROPERLY SEALED / NO OPEN END", "", "100%", "VISUAL"],
       ["PART NUMBER VERIFICATION", "", "100%", "VISUAL COMPARE WITH PO"],
-      ["NET WEIGHT", "", "ACTUAL", "ACTUAL-Value to be mentioned in Kg"],
-      ["GROSS WEIGHT", "", "ACTUAL", "ACTUAL-Value to be mentioned in Kg"],
+      ["NET WEIGHT", "", "100%", "ACTUAL-Value to be mentioned in Kg"],
+      ["GROSS WEIGHT", "", "100%", "ACTUAL-Value to be mentioned in Kg"],
       [
         "Material test report for all Casting parts & Forging parts",
-        "",
         "Per Heat/Batch Code",
+        "100%",
         "Attach actual test report as per Material Grade",
       ],
     ],
@@ -167,23 +169,92 @@ export function pdiTemplateParameters() {
 }
 
 const PDI_TEMPLATE_NAMES = new Set(pdiTemplateParameters())
+const STORED_FREQUENCY = /^(.*) \(([1-9]\d?|100)%\)$/
+
+export function clampFrequency(value) {
+  if (value === "" || value == null) return 100
+  const number = Math.round(Number(value))
+  if (!Number.isFinite(number)) return 100
+  return Math.min(100, Math.max(1, number))
+}
+
+export function templateFrequency(parameter) {
+  for (const section of PDI_SECTIONS) {
+    const item = section.items.find((entry) => entry.parameter === parameter)
+    if (!item) continue
+    const match = String(item.freq).match(/^(\d+)\s*%$/)
+    if (!match) return 100
+    return clampFrequency(match[1])
+  }
+  return 100
+}
+
+export function readStoredParameter(raw) {
+  const text = String(raw ?? "").trim()
+  const match = text.match(STORED_FREQUENCY)
+  let name = match ? match[1] : text
+  const frequency = match ? Number(match[2]) : null
+  if (name.includes("NAME & ADDRESS VERIFICATION") && name !== COMPANY_ADDRESS_PARAMETER) {
+    name = COMPANY_ADDRESS_PARAMETER
+  }
+  return { name, frequency }
+}
 
 export function isPdiTemplateParameter(name) {
-  return PDI_TEMPLATE_NAMES.has(name)
+  return PDI_TEMPLATE_NAMES.has(readStoredParameter(name).name)
+}
+
+export function templateSelection(parameters) {
+  const checks = []
+  const frequencies = {}
+  for (const raw of Array.isArray(parameters) ? parameters : []) {
+    const { name, frequency } = readStoredParameter(raw)
+    if (!PDI_TEMPLATE_NAMES.has(name) || checks.includes(name)) continue
+    checks.push(name)
+    if (frequency) frequencies[name] = frequency
+  }
+  return { checks, frequencies }
+}
+
+export function parameterForStorage(name, frequency) {
+  const chosen = clampFrequency(frequency)
+  if (chosen === templateFrequency(name)) return name
+  return `${name} (${chosen}%)`
+}
+
+function sectionsWithFrequency(sections, frequencies) {
+  return sections.map((section) => ({
+    ...section,
+    items: section.items.map((item) => {
+      const chosen = frequencies?.get(item.parameter)
+      const percent = chosen || templateFrequency(item.parameter)
+      return { ...item, freq: `${percent}%` }
+    }),
+  }))
 }
 
 export function pdiSectionsForProduct(parameters) {
   const saved = Array.isArray(parameters) ? parameters : []
-  const included = saved.filter((name) => PDI_TEMPLATE_NAMES.has(name))
-  if (!included.length) return PDI_SECTIONS
-  const selected = new Set(included)
-  return PDI_SECTIONS.map((section) => ({
-    ...section,
-    items: section.items.filter((item) => selected.has(item.parameter)),
-  })).filter((section) => section.items.length)
+  const included = saved.map(readStoredParameter).filter((item) => PDI_TEMPLATE_NAMES.has(item.name))
+  if (!included.length) return sectionsWithFrequency(PDI_SECTIONS)
+  const frequencies = new Map()
+  for (const item of included) {
+    if (!frequencies.has(item.name)) frequencies.set(item.name, item.frequency)
+  }
+  const selected = sectionsWithFrequency(
+    PDI_SECTIONS.map((section) => ({
+      ...section,
+      items: section.items.filter((item) => frequencies.has(item.parameter)),
+    })).filter((section) => section.items.length),
+    frequencies,
+  )
+  return selected
 }
 
 export function extraProductParameters(parameters) {
   const saved = Array.isArray(parameters) ? parameters : []
-  return saved.filter((name) => !PDI_TEMPLATE_NAMES.has(name))
+  return saved
+    .map(readStoredParameter)
+    .filter((item) => !PDI_TEMPLATE_NAMES.has(item.name))
+    .map((item) => item.name)
 }

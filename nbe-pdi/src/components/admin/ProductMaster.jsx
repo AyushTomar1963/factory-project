@@ -1,68 +1,105 @@
 import { useState } from "react"
 import { ScrollTable } from "@/components/ui/scroll-table"
-import { PDI_SECTIONS, pdiTemplateParameters, isPdiTemplateParameter } from "../../pdi"
+import {
+  PDI_SECTIONS,
+  clampFrequency,
+  isPdiTemplateParameter,
+  parameterForStorage,
+  pdiTemplateParameters,
+  templateFrequency,
+  templateSelection,
+} from "../../pdi"
 import { Button } from "../ui/qa-button"
 import { FormField, Input } from "../ui/FormField"
 import { PartQrButton } from "./PartQrLabel"
 
 const TEMPLATE_PARAMETERS = pdiTemplateParameters()
 
-function TemplateChecks({ selected, onChange }) {
+function TemplateChecks({ selected, frequencies, onChange, onFrequency }) {
   const selectedSet = new Set(selected)
   const toggle = (parameter) => {
     if (selectedSet.has(parameter)) onChange(selected.filter((name) => name !== parameter))
     else onChange([...selected, parameter])
   }
 
-  const allSelected = selected.length === TEMPLATE_PARAMETERS.length
-  const summary = allSelected
-    ? `Full pre-dispatch template is already on this part (${selected.length} checks). Open only to remove a line.`
-    : selected.length === 0
-      ? "No pre-dispatch lines selected. Open to put the template on this part."
-      : `${selected.length} of ${TEMPLATE_PARAMETERS.length} pre-dispatch checks. Open to change the lines.`
+  const summary =
+    selected.length === 0
+      ? "No pre-dispatch lines selected. Tick the checks this part needs."
+      : selected.length === TEMPLATE_PARAMETERS.length
+        ? `All ${TEMPLATE_PARAMETERS.length} pre-dispatch checks selected.`
+        : `${selected.length} of ${TEMPLATE_PARAMETERS.length} pre-dispatch checks selected.`
 
   return (
-    <details className="rounded-lg border border-brand-100 bg-brand-50/40">
-      <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-brand-900">
-        {summary}
-      </summary>
-      <div className="max-h-80 space-y-4 overflow-y-auto border-t border-brand-100 px-4 py-3">
-        {!allSelected && (
-          <button
-            type="button"
-            className="text-xs font-bold text-brand-700 hover:underline"
-            onClick={() => onChange(TEMPLATE_PARAMETERS)}
-          >
-            Select every pre-dispatch line
-          </button>
-        )}
-        {PDI_SECTIONS.map((section) => (
-          <div key={section.title}>
-            <p className="text-xs font-bold uppercase tracking-wide text-brand-800">{section.title}</p>
-            <ul className="mt-1 space-y-1">
-              {section.items.map((item) => (
-                <li key={item.parameter}>
-                  <label className="flex items-start gap-2 text-sm text-gray-800">
-                    <input
-                      type="checkbox"
-                      className="mt-1"
-                      checked={selectedSet.has(item.parameter)}
-                      onChange={() => toggle(item.parameter)}
-                    />
-                    <span>
-                      {item.parameter}
-                      {item.specification ? (
-                        <span className="block text-xs text-gray-500">{item.specification}</span>
-                      ) : null}
-                    </span>
-                  </label>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className="inline-flex min-h-11 items-center rounded-lg border border-brand-200 bg-white px-3 text-sm font-bold text-brand-800 active:scale-[0.98]"
+          onClick={() => onChange(TEMPLATE_PARAMETERS)}
+        >
+          Check all
+        </button>
+        <button
+          type="button"
+          className="inline-flex min-h-11 items-center rounded-lg border border-gray-200 bg-white px-3 text-sm font-bold text-gray-700 active:scale-[0.98]"
+          onClick={() => onChange([])}
+        >
+          Uncheck all
+        </button>
       </div>
-    </details>
+      <details className="rounded-lg border border-brand-100 bg-brand-50/40" open>
+        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-brand-900">
+          {summary}
+        </summary>
+        <div className="max-h-[70vh] space-y-4 overflow-y-auto border-t border-brand-100 px-4 py-3">
+          {PDI_SECTIONS.map((section) => (
+            <div key={section.title}>
+              <p className="text-xs font-bold uppercase tracking-wide text-brand-800">{section.title}</p>
+              <ul className="mt-1">
+                {section.items.map((item) => (
+                  <li key={item.parameter} className="border-b border-brand-100/80 py-2 last:border-b-0">
+                    <label className="flex items-start gap-2 text-sm text-gray-800">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 size-5 shrink-0 accent-brand-700"
+                        checked={selectedSet.has(item.parameter)}
+                        onChange={() => toggle(item.parameter)}
+                      />
+                      <span className="min-w-0">
+                        {item.parameter}
+                        {item.specification ? (
+                          <span className="block text-xs text-gray-500">{item.specification}</span>
+                        ) : null}
+                      </span>
+                    </label>
+                    <label className="mt-2 flex items-center gap-2 pl-7 text-xs font-semibold text-gray-600">
+                      Frequency
+                      <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        step={1}
+                        inputMode="numeric"
+                        aria-label={`Frequency percent for ${item.parameter}`}
+                        className="h-11 w-20 rounded-md border border-gray-300 bg-white px-2 text-center text-base font-semibold text-gray-900"
+                        value={frequencies[item.parameter] ?? templateFrequency(item.parameter)}
+                        onChange={(event) => onFrequency(item.parameter, event.target.value)}
+                        onBlur={() => {
+                          if (frequencies[item.parameter] === "" || frequencies[item.parameter] == null) {
+                            onFrequency(item.parameter, templateFrequency(item.parameter))
+                          }
+                        }}
+                      />
+                      <span>% (1–100)</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </details>
+    </div>
   )
 }
 
@@ -91,7 +128,7 @@ export function ParameterEditor({ parameters, onChange, allowEmpty = false }) {
     <div className="space-y-3">
       <FormField label="Inspection parameters">
         <p className="text-xs text-gray-500 mb-2">
-          Extra part-specific checks only. The pre-dispatch template is already included.
+          Extra part-specific checks, listed with the ticked pre-dispatch lines.
         </p>
         <div className="flex gap-2">
           <Input
@@ -145,9 +182,12 @@ export function ProductForm({ initial, onSubmit, onCancel, isSaving }) {
   const [partNumber, setPartNumber] = useState(initial?.part_number || "")
   const [partName, setPartName] = useState(initial?.part_name || "")
   const [groupName, setGroupName] = useState(initial?.group || "")
-  const [templateChecks, setTemplateChecks] = useState(
-    isEdit ? starting.filter((name) => isPdiTemplateParameter(name)) : TEMPLATE_PARAMETERS,
-  )
+  const savedSelection = isEdit ? templateSelection(starting) : { checks: [], frequencies: {} }
+  const [templateChecks, setTemplateChecks] = useState(savedSelection.checks)
+  const [frequencies, setFrequencies] = useState(() => ({
+    ...Object.fromEntries(TEMPLATE_PARAMETERS.map((name) => [name, templateFrequency(name)])),
+    ...savedSelection.frequencies,
+  }))
   const [extras, setExtras] = useState(starting.filter((name) => !isPdiTemplateParameter(name)))
   const [error, setError] = useState("")
 
@@ -163,11 +203,13 @@ export function ProductForm({ initial, onSubmit, onCancel, isSaving }) {
       return
     }
     const parameters = [
-      ...TEMPLATE_PARAMETERS.filter((name) => templateChecks.includes(name)),
+      ...TEMPLATE_PARAMETERS.filter((name) => templateChecks.includes(name)).map((name) =>
+        parameterForStorage(name, frequencies[name]),
+      ),
       ...extras.filter((name) => !isPdiTemplateParameter(name)),
     ]
     if (parameters.length === 0) {
-      setError("Keep at least one pre-dispatch check.")
+      setError("Select at least one pre-dispatch check, or add a parameter.")
       return
     }
     try {
@@ -214,7 +256,18 @@ export function ProductForm({ initial, onSubmit, onCancel, isSaving }) {
           placeholder="e.g. Bushings, Rotors"
         />
       </FormField>
-      <TemplateChecks selected={templateChecks} onChange={setTemplateChecks} />
+      <TemplateChecks
+        selected={templateChecks}
+        frequencies={frequencies}
+        onChange={setTemplateChecks}
+        onFrequency={(parameter, value) => {
+          if (value === "") {
+            setFrequencies((current) => ({ ...current, [parameter]: "" }))
+            return
+          }
+          setFrequencies((current) => ({ ...current, [parameter]: clampFrequency(value) }))
+        }}
+      />
       <ParameterEditor parameters={extras} onChange={setExtras} allowEmpty />
       {error && (
         <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">

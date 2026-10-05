@@ -88,7 +88,7 @@ export function SuppliersPanel({ token }) {
               id="supplier-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Kirloskar Components Ltd"
+              placeholder="e.g. ABC Components Pvt Ltd"
               required
             />
           </FormField>
