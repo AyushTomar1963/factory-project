@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/sidebar"
 import { BrandLogo } from "../layout/Shell"
 import { getAdminTab, ADMIN_TABS } from "../../constants/admin"
+import { MobileMenuHistory } from "../../hooks/useMobileMenu"
 import { returnToPrevious } from "../../hooks/useSection"
 import { useSidebar } from "@/components/ui/sidebar"
 
@@ -98,6 +99,7 @@ export function AdminAppShell({
 
   return (
     <SidebarProvider defaultOpen>
+      <MobileMenuHistory />
       <Sidebar collapsible="icon" className="border-sidebar-border">
         <SidebarHeader className="border-b border-sidebar-border">
           <div className="flex items-center gap-3 px-2 py-3 group-data-[collapsible=icon]:justify-center">

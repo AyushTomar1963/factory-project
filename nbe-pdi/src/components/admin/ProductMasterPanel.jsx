@@ -7,9 +7,12 @@ import {
 } from "../../api/admin"
 import { AlertBanner } from "../ui/StatusBadge"
 import { SectionCard } from "./AdminAppShell"
+import { visibleProducts } from "../../pdi-format"
+import { usePdiFormat } from "../../hooks/usePdiFormat"
 import { ProductForm, ProductsTable } from "./ProductMaster"
 
 export function ProductMasterPanel({ token }) {
+  const format = usePdiFormat(token)
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -23,7 +26,7 @@ export function ProductMasterPanel({ token }) {
 
     fetchProducts(token)
       .then((data) => {
-        if (!cancelled) setProducts(data)
+        if (!cancelled) setProducts(visibleProducts(data))
       })
       .catch((err) => {
         if (!cancelled) setError(err.message)
@@ -99,6 +102,7 @@ export function ProductMasterPanel({ token }) {
         ) : (
           <ProductsTable
             products={products}
+            sections={format.sections}
             onEdit={setEditing}
             onDeactivate={handleDeactivate}
           />
@@ -125,7 +129,8 @@ export function ProductMasterPanel({ token }) {
         }
       >
         <ProductForm
-          key={editing?.part_number || "new"}
+          key={`${editing?.part_number || "new"}-${format.sections.length}`}
+          sections={format.sections}
           initial={editing}
           isSaving={isSaving}
           onSubmit={editing ? handleUpdate : handleCreate}

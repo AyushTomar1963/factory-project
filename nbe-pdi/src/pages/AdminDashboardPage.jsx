@@ -27,7 +27,7 @@ export function AdminDashboardPage({ token, username, onLogout }) {
       {activeTab === "suppliers" && <SuppliersPanel token={token} />}
       {activeTab === "users" && <UsersPanel token={token} />}
       {activeTab === "reports" && <ReportsPanel token={token} defaultType="iqc" />}
-      {activeTab === "pdi" && <PdiPage embedded token={token} />}
+      {activeTab === "pdi" && <PdiPage embedded canEditFormat token={token} />}
     </AdminAppShell>
   )
 }

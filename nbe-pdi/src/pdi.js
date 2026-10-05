@@ -178,8 +178,12 @@ export function clampFrequency(value) {
   return Math.min(100, Math.max(1, number))
 }
 
-export function templateFrequency(parameter) {
-  for (const section of PDI_SECTIONS) {
+export function templateNames(sections = PDI_SECTIONS) {
+  return sections.flatMap((section) => section.items.map((item) => item.parameter))
+}
+
+export function templateFrequency(parameter, sections = PDI_SECTIONS) {
+  for (const section of sections) {
     const item = section.items.find((entry) => entry.parameter === parameter)
     if (!item) continue
     const match = String(item.freq).match(/^(\d+)\s*%$/)
@@ -200,25 +204,27 @@ export function readStoredParameter(raw) {
   return { name, frequency }
 }
 
-export function isPdiTemplateParameter(name) {
-  return PDI_TEMPLATE_NAMES.has(readStoredParameter(name).name)
+export function isPdiTemplateParameter(name, sections = PDI_SECTIONS) {
+  const bare = readStoredParameter(name).name
+  return PDI_TEMPLATE_NAMES.has(bare) || templateNames(sections).includes(bare)
 }
 
-export function templateSelection(parameters) {
+export function templateSelection(parameters, sections = PDI_SECTIONS) {
+  const names = new Set(templateNames(sections))
   const checks = []
   const frequencies = {}
   for (const raw of Array.isArray(parameters) ? parameters : []) {
     const { name, frequency } = readStoredParameter(raw)
-    if (!PDI_TEMPLATE_NAMES.has(name) || checks.includes(name)) continue
+    if (!names.has(name) || checks.includes(name)) continue
     checks.push(name)
     if (frequency) frequencies[name] = frequency
   }
   return { checks, frequencies }
 }
 
-export function parameterForStorage(name, frequency) {
+export function parameterForStorage(name, frequency, sections = PDI_SECTIONS) {
   const chosen = clampFrequency(frequency)
-  if (chosen === templateFrequency(name)) return name
+  if (chosen === templateFrequency(name, sections)) return name
   return `${name} (${chosen}%)`
 }
 
@@ -227,34 +233,40 @@ function sectionsWithFrequency(sections, frequencies) {
     ...section,
     items: section.items.map((item) => {
       const chosen = frequencies?.get(item.parameter)
-      const percent = chosen || templateFrequency(item.parameter)
-      return { ...item, freq: `${percent}%` }
+      if (!chosen) return { ...item, freq: item.freq || "100%" }
+      return { ...item, freq: `${chosen}%` }
     }),
   }))
 }
 
-export function pdiSectionsForProduct(parameters) {
+export function pdiSectionsForProduct(parameters, sections = PDI_SECTIONS) {
+  const names = new Set(templateNames(sections))
   const saved = Array.isArray(parameters) ? parameters : []
-  const included = saved.map(readStoredParameter).filter((item) => PDI_TEMPLATE_NAMES.has(item.name))
-  if (!included.length) return sectionsWithFrequency(PDI_SECTIONS)
+  const included = saved.map(readStoredParameter).filter((item) => names.has(item.name))
+  if (!included.length) {
+    const hadTemplateLine = saved.some((raw) => PDI_TEMPLATE_NAMES.has(readStoredParameter(raw).name))
+    return hadTemplateLine ? [] : sectionsWithFrequency(sections)
+  }
   const frequencies = new Map()
   for (const item of included) {
     if (!frequencies.has(item.name)) frequencies.set(item.name, item.frequency)
   }
-  const selected = sectionsWithFrequency(
-    PDI_SECTIONS.map((section) => ({
-      ...section,
-      items: section.items.filter((item) => frequencies.has(item.parameter)),
-    })).filter((section) => section.items.length),
+  return sectionsWithFrequency(
+    sections
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((item) => frequencies.has(item.parameter)),
+      }))
+      .filter((section) => section.items.length),
     frequencies,
   )
-  return selected
 }
 
-export function extraProductParameters(parameters) {
+export function extraProductParameters(parameters, sections = PDI_SECTIONS) {
+  const names = new Set([...PDI_TEMPLATE_NAMES, ...templateNames(sections)])
   const saved = Array.isArray(parameters) ? parameters : []
   return saved
     .map(readStoredParameter)
-    .filter((item) => !PDI_TEMPLATE_NAMES.has(item.name))
+    .filter((item) => !names.has(item.name))
     .map((item) => item.name)
 }

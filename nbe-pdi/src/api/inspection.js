@@ -1,12 +1,13 @@
 import { apiFetch } from "./client"
+import { visibleProducts } from "../pdi-format"
 
 export async function fetchPdiProducts(token) {
   try {
-    return await apiFetch("/api/products", { token })
+    return visibleProducts(await apiFetch("/api/products", { token }))
   } catch (error) {
     if (error.status !== 404) throw error
   }
-  return apiFetch("/api/admin/products", { token })
+  return visibleProducts(await apiFetch("/api/admin/products", { token }))
 }
 
 export function fetchPartSpec(token, partNumber) {

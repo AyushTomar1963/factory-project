@@ -5,17 +5,16 @@ import {
   clampFrequency,
   isPdiTemplateParameter,
   parameterForStorage,
-  pdiTemplateParameters,
   templateFrequency,
+  templateNames,
   templateSelection,
 } from "../../pdi"
 import { Button } from "../ui/qa-button"
 import { FormField, Input } from "../ui/FormField"
 import { PartQrButton } from "./PartQrLabel"
 
-const TEMPLATE_PARAMETERS = pdiTemplateParameters()
-
-function TemplateChecks({ selected, frequencies, onChange, onFrequency }) {
+function TemplateChecks({ sections, selected, frequencies, onChange, onFrequency }) {
+  const parameters = templateNames(sections)
   const selectedSet = new Set(selected)
   const toggle = (parameter) => {
     if (selectedSet.has(parameter)) onChange(selected.filter((name) => name !== parameter))
@@ -25,9 +24,9 @@ function TemplateChecks({ selected, frequencies, onChange, onFrequency }) {
   const summary =
     selected.length === 0
       ? "No pre-dispatch lines selected. Tick the checks this part needs."
-      : selected.length === TEMPLATE_PARAMETERS.length
-        ? `All ${TEMPLATE_PARAMETERS.length} pre-dispatch checks selected.`
-        : `${selected.length} of ${TEMPLATE_PARAMETERS.length} pre-dispatch checks selected.`
+      : selected.length === parameters.length
+        ? `All ${parameters.length} pre-dispatch checks selected.`
+        : `${selected.length} of ${parameters.length} pre-dispatch checks selected.`
 
   return (
     <div className="space-y-2">
@@ -35,7 +34,7 @@ function TemplateChecks({ selected, frequencies, onChange, onFrequency }) {
         <button
           type="button"
           className="inline-flex min-h-11 items-center rounded-lg border border-brand-200 bg-white px-3 text-sm font-bold text-brand-800 active:scale-[0.98]"
-          onClick={() => onChange(TEMPLATE_PARAMETERS)}
+          onClick={() => onChange(parameters)}
         >
           Check all
         </button>
@@ -52,7 +51,7 @@ function TemplateChecks({ selected, frequencies, onChange, onFrequency }) {
           {summary}
         </summary>
         <div className="max-h-[70vh] space-y-4 overflow-y-auto border-t border-brand-100 px-4 py-3">
-          {PDI_SECTIONS.map((section) => (
+          {sections.map((section) => (
             <div key={section.title}>
               <p className="text-xs font-bold uppercase tracking-wide text-brand-800">{section.title}</p>
               <ul className="mt-1">
@@ -82,11 +81,11 @@ function TemplateChecks({ selected, frequencies, onChange, onFrequency }) {
                         inputMode="numeric"
                         aria-label={`Frequency percent for ${item.parameter}`}
                         className="h-11 w-20 rounded-md border border-gray-300 bg-white px-2 text-center text-base font-semibold text-gray-900"
-                        value={frequencies[item.parameter] ?? templateFrequency(item.parameter)}
+                        value={frequencies[item.parameter] ?? templateFrequency(item.parameter, sections)}
                         onChange={(event) => onFrequency(item.parameter, event.target.value)}
                         onBlur={() => {
                           if (frequencies[item.parameter] === "" || frequencies[item.parameter] == null) {
-                            onFrequency(item.parameter, templateFrequency(item.parameter))
+                            onFrequency(item.parameter, templateFrequency(item.parameter, sections))
                           }
                         }}
                       />
@@ -103,12 +102,12 @@ function TemplateChecks({ selected, frequencies, onChange, onFrequency }) {
   )
 }
 
-export function ParameterEditor({ parameters, onChange, allowEmpty = false }) {
+export function ParameterEditor({ parameters, onChange, allowEmpty = false, sections = PDI_SECTIONS }) {
   const [draft, setDraft] = useState("")
 
   const addParameter = () => {
     const trimmed = draft.trim()
-    if (!trimmed || isPdiTemplateParameter(trimmed)) {
+    if (!trimmed || isPdiTemplateParameter(trimmed, sections)) {
       setDraft("")
       return
     }
@@ -176,19 +175,20 @@ export function ParameterEditor({ parameters, onChange, allowEmpty = false }) {
   )
 }
 
-export function ProductForm({ initial, onSubmit, onCancel, isSaving }) {
+export function ProductForm({ initial, onSubmit, onCancel, isSaving, sections = PDI_SECTIONS }) {
   const isEdit = Boolean(initial?.part_number)
   const starting = initial?.parameters || []
+  const parameters = templateNames(sections)
   const [partNumber, setPartNumber] = useState(initial?.part_number || "")
   const [partName, setPartName] = useState(initial?.part_name || "")
   const [groupName, setGroupName] = useState(initial?.group || "")
-  const savedSelection = isEdit ? templateSelection(starting) : { checks: [], frequencies: {} }
+  const savedSelection = isEdit ? templateSelection(starting, sections) : { checks: [], frequencies: {} }
   const [templateChecks, setTemplateChecks] = useState(savedSelection.checks)
   const [frequencies, setFrequencies] = useState(() => ({
-    ...Object.fromEntries(TEMPLATE_PARAMETERS.map((name) => [name, templateFrequency(name)])),
+    ...Object.fromEntries(parameters.map((name) => [name, templateFrequency(name, sections)])),
     ...savedSelection.frequencies,
   }))
-  const [extras, setExtras] = useState(starting.filter((name) => !isPdiTemplateParameter(name)))
+  const [extras, setExtras] = useState(starting.filter((name) => !isPdiTemplateParameter(name, sections)))
   const [error, setError] = useState("")
 
   const handleSubmit = async (e) => {
@@ -202,13 +202,13 @@ export function ProductForm({ initial, onSubmit, onCancel, isSaving }) {
       setError("Part name is required.")
       return
     }
-    const parameters = [
-      ...TEMPLATE_PARAMETERS.filter((name) => templateChecks.includes(name)).map((name) =>
-        parameterForStorage(name, frequencies[name]),
+    const savedParameters = [
+      ...parameters.filter((name) => templateChecks.includes(name)).map((name) =>
+        parameterForStorage(name, frequencies[name], sections),
       ),
-      ...extras.filter((name) => !isPdiTemplateParameter(name)),
+      ...extras.filter((name) => !isPdiTemplateParameter(name, sections)),
     ]
-    if (parameters.length === 0) {
+    if (savedParameters.length === 0) {
       setError("Select at least one pre-dispatch check, or add a parameter.")
       return
     }
@@ -217,7 +217,7 @@ export function ProductForm({ initial, onSubmit, onCancel, isSaving }) {
         part_number: partNumber.trim().toUpperCase(),
         part_name: partName.trim(),
         group_name: groupName.trim() || null,
-        parameters,
+        parameters: savedParameters,
       })
     } catch (err) {
       setError(err.message)
@@ -257,6 +257,7 @@ export function ProductForm({ initial, onSubmit, onCancel, isSaving }) {
         />
       </FormField>
       <TemplateChecks
+        sections={sections}
         selected={templateChecks}
         frequencies={frequencies}
         onChange={setTemplateChecks}
@@ -268,7 +269,7 @@ export function ProductForm({ initial, onSubmit, onCancel, isSaving }) {
           setFrequencies((current) => ({ ...current, [parameter]: clampFrequency(value) }))
         }}
       />
-      <ParameterEditor parameters={extras} onChange={setExtras} allowEmpty />
+      <ParameterEditor sections={sections} parameters={extras} onChange={setExtras} allowEmpty />
       {error && (
         <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
           {error}
@@ -288,10 +289,11 @@ export function ProductForm({ initial, onSubmit, onCancel, isSaving }) {
   )
 }
 
-function ProductChecks({ parameters = [] }) {
-  const templateCount = parameters.filter((name) => isPdiTemplateParameter(name)).length
-  const extras = parameters.filter((name) => !isPdiTemplateParameter(name))
-  if (templateCount === TEMPLATE_PARAMETERS.length && extras.length === 0) {
+function ProductChecks({ parameters = [], sections = PDI_SECTIONS }) {
+  const templateCount = parameters.filter((name) => isPdiTemplateParameter(name, sections)).length
+  const extras = parameters.filter((name) => !isPdiTemplateParameter(name, sections))
+  const total = templateNames(sections).length
+  if (templateCount === total && extras.length === 0) {
     return (
       <span className="text-xs font-semibold bg-brand-50 text-brand-800 px-2 py-0.5 rounded">
         Pre-dispatch template
@@ -317,7 +319,7 @@ function ProductChecks({ parameters = [] }) {
   )
 }
 
-export function ProductsTable({ products, onEdit, onDeactivate }) {
+export function ProductsTable({ products, onEdit, onDeactivate, sections = PDI_SECTIONS }) {
   if (!products.length) {
     return (
       <p className="text-center text-gray-500 font-semibold py-8">
@@ -345,7 +347,7 @@ export function ProductsTable({ products, onEdit, onDeactivate }) {
               <td className="p-4 font-semibold text-gray-800">{product.part_name}</td>
               <td className="p-4 text-gray-600">{product.group || "—"}</td>
               <td className="p-4">
-                <ProductChecks parameters={product.parameters} />
+                <ProductChecks parameters={product.parameters} sections={sections} />
               </td>
               <td className="p-4 whitespace-nowrap">
                 <div className="flex flex-wrap gap-3">

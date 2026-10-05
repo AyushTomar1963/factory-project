@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/sidebar"
 import { BrandLogo } from "../layout/Shell"
 import { getStoreTab, STORE_TABS } from "../../constants/store"
+import { MobileMenuHistory } from "../../hooks/useMobileMenu"
 import { returnToPrevious } from "../../hooks/useSection"
 import { useSidebar } from "@/components/ui/sidebar"
 
@@ -95,6 +96,7 @@ export function StoreAppShell({
 
   return (
     <SidebarProvider defaultOpen>
+      <MobileMenuHistory />
       <Sidebar collapsible="icon" className="border-sidebar-border">
         <SidebarHeader className="border-b border-sidebar-border">
           <div className="flex items-center gap-3 px-2 py-3 group-data-[collapsible=icon]:justify-center">

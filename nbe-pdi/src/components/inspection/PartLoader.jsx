@@ -2,7 +2,6 @@ import { useState } from "react"
 import {
   Camera,
   CheckCircle2,
-  ChevronLeft,
   RotateCcw,
   Search,
 } from "lucide-react"
@@ -22,18 +21,14 @@ import {
 } from "@/components/ui/input-group"
 import { Spinner } from "@/components/ui/spinner"
 import { Button } from "../ui/qa-button"
-import { QrScanPanel } from "./QrScanPanel"
 
 export function PartLoader({
   partNumber,
   manualInput,
   onManualChange,
   onManualSubmit,
-  isScanning,
   onStartScan,
-  onCancelScan,
   onReset,
-  onScan,
   isFetchingSpec,
 }) {
   const [resetOpen, setResetOpen] = useState(false)
@@ -133,38 +128,6 @@ export function PartLoader({
         <Camera className="size-5" />
         Scan QR code
       </Button>
-
-      <Dialog open={isScanning} onOpenChange={(open) => !open && onCancelScan()}>
-        <DialogContent className="qr-scan-dialog max-w-md p-4 sm:max-w-lg" showCloseButton={false}>
-          <button
-            type="button"
-            onClick={onCancelScan}
-            className="inline-flex min-h-11 items-center gap-0.5 self-start text-sm font-bold text-brand-800"
-          >
-            <ChevronLeft className="size-5" />
-            Back
-          </button>
-          <DialogHeader>
-            <DialogTitle>Scan part QR code</DialogTitle>
-            <DialogDescription>
-              Use the back or front camera, or upload a photo. A mirrored code is read too.
-            </DialogDescription>
-          </DialogHeader>
-          {isScanning && (
-            <QrScanPanel
-              onDetected={(partNumberFromCode) => {
-                onCancelScan()
-                onScan(partNumberFromCode)
-              }}
-            />
-          )}
-          <DialogFooter>
-            <Button variant="muted" size="block" className="w-full" onClick={onCancelScan}>
-              Back
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

@@ -7,9 +7,12 @@ export function useSection(key, ids, fallback) {
 
   const setActive = (id) => {
     const next = new URLSearchParams(params)
+    next.delete("menu")
+    next.delete("edit")
     if (!id || id === fallback) next.delete(key)
     else next.set(key, id)
-    setParams(next)
+    if (next.toString() === params.toString()) return
+    setParams(next, { replace: params.get("menu") === "1" })
     window.scrollTo({ top: 0, left: 0 })
   }
 
