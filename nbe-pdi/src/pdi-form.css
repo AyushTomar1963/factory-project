@@ -72,6 +72,78 @@
   background: #163a5c;
 }
 
+.pdi-formats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  flex: 1 0 100%;
+}
+
+.pdi-formats button {
+  min-height: 2.75rem;
+  border: 1px solid #1f4e78;
+  border-radius: 0.7rem;
+  background: #fff;
+  color: #1f4e78;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pdi-formats button:hover {
+  background: #e8f0f8;
+}
+
+.pdi-formats button:focus-visible {
+  outline: 2px solid #1f4e78;
+  outline-offset: 2px;
+}
+
+.pdi-formats button[aria-checked="true"] {
+  background: #1f4e78;
+  color: #fff;
+}
+
+.pdi-editor-block {
+  display: block;
+  margin-top: 0.85rem;
+}
+
+.pdi-editor-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: #1f4e78;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pdi-editor {
+  display: block;
+  width: 100%;
+  min-height: 16rem;
+  border: 1px solid #9bb0c7;
+  border-radius: 0.55rem;
+  padding: 0.75rem;
+  background: #fff;
+  color: #111827;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.pdi-editor::placeholder {
+  color: #4b5563;
+}
+
+.pdi-editor:focus {
+  outline: 2px solid #1f4e78;
+  outline-offset: 1px;
+}
+
 .pdi-sheet {
   container-type: inline-size;
   container-name: pdi;
@@ -553,6 +625,22 @@
     grid-template-columns: 1fr 1fr;
   }
 
+  #pdi-print-host.pdi-format-editor {
+    page: pdi-editor;
+  }
+
+  #pdi-print-host .pdi-editor-block .pdi-filled-value {
+    display: block;
+    white-space: pre-wrap;
+    border: 1px solid #1f4e78;
+    min-height: 80mm;
+    margin-top: 2mm;
+    padding: 4mm;
+    font-size: 11pt;
+    font-weight: 600;
+    line-height: 1.45;
+  }
+
   #pdi-print-host .pdi-table-wrap {
     display: block !important;
     overflow: visible;
@@ -650,5 +738,10 @@
   @page {
     size: A4 landscape;
     margin: 1cm;
+  }
+
+  @page pdi-editor {
+    size: A4 portrait;
+    margin: 1.4cm;
   }
 }

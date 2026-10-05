@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Link } from "react-router-dom"
 import { fetchPdiProducts } from "../api/inspection"
+import { useSection } from "../hooks/useSection"
 import {
   PDI_COMPANY,
   PDI_METADATA_ROWS,
@@ -37,7 +38,7 @@ function syncControlValues(root) {
   })
 }
 
-function pdfTitle(meta, now = new Date()) {
+function pdfTitle(meta, format, now = new Date()) {
   const pad = (value) => String(value).padStart(2, "0")
   const stamp = [
     pad(now.getDate()),
@@ -52,7 +53,8 @@ function pdfTitle(meta, now = new Date()) {
     .replace(/[^\w.-]+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "")
-  return part ? `NBE-PDI-${part}-${stamp}` : `NBE-PDI-${stamp}`
+  const kind = format === "editor" ? "NBE-PDI-EDITOR" : "NBE-PDI"
+  return part ? `${kind}-${part}-${stamp}` : `${kind}-${stamp}`
 }
 
 function printedFieldValue(field) {
@@ -65,9 +67,9 @@ function printedFieldValue(field) {
 
 let previousDocumentTitle = ""
 
-function applyPdfTitle(meta) {
+function applyPdfTitle(meta, format) {
   if (!previousDocumentTitle) previousDocumentTitle = document.title
-  document.title = pdfTitle(meta)
+  document.title = pdfTitle(meta, format)
 }
 
 function restorePdfTitle() {
@@ -106,6 +108,7 @@ function mountPdiPrintHost() {
   const host = document.createElement("div")
   host.id = PRINT_HOST_ID
   host.setAttribute("aria-hidden", "true")
+  if (source.classList.contains("pdi-format-editor")) host.classList.add("pdi-format-editor")
   const clone = source.cloneNode(true)
   flattenSectionCells(clone)
 
@@ -215,8 +218,10 @@ function PhoneChecklist({ checklist, onField }) {
 }
 
 export function PdiPage({ embedded = false, layout, token, onLeave, onLogout }) {
+  const [format, setFormat] = useSection("format", ["checklist", "editor"], "checklist")
   const [meta, setMeta] = useState(initialMeta)
   const [rows, setRows] = useState({})
+  const [editorText, setEditorText] = useState("")
   const [checkedBy, setCheckedBy] = useState("")
   const [approvedBy, setApprovedBy] = useState("")
   const [products, setProducts] = useState([])
@@ -226,9 +231,13 @@ export function PdiPage({ embedded = false, layout, token, onLeave, onLogout }) 
   const reportSections = pdiSectionsForProduct(selectedProduct?.parameters)
   const extraParameters = extraProductParameters(selectedProduct?.parameters)
   const metaRef = useRef(meta)
+  const formatRef = useRef(format)
   useEffect(() => {
     metaRef.current = meta
   }, [meta])
+  useEffect(() => {
+    formatRef.current = format
+  }, [format])
 
   useEffect(() => {
     if (!token) return undefined
@@ -273,7 +282,7 @@ export function PdiPage({ embedded = false, layout, token, onLeave, onLogout }) 
 
   useEffect(() => {
     const onBeforePrint = () => {
-      applyPdfTitle(metaRef.current)
+      applyPdfTitle(metaRef.current, formatRef.current)
       mountPdiPrintHost()
     }
     const onAfterPrint = () => {
@@ -363,7 +372,7 @@ export function PdiPage({ embedded = false, layout, token, onLeave, onLogout }) 
             type="button"
             className="pdi-print-button"
             onClick={() => {
-              applyPdfTitle(meta)
+              applyPdfTitle(meta, format)
               mountPdiPrintHost()
               window.print()
             }}
@@ -371,17 +380,37 @@ export function PdiPage({ embedded = false, layout, token, onLeave, onLogout }) 
             Print / Save PDF
           </button>
         </div>
+        <div className="pdi-formats" role="radiogroup" aria-label="PDI format">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={format === "checklist"}
+            onClick={() => setFormat("checklist")}
+          >
+            Checklist
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={format === "editor"}
+            onClick={() => setFormat("editor")}
+          >
+            Editor
+          </button>
+        </div>
         <p className="pdi-source">
           {productStatus === "loading" && "Loading product master…"}
           {productStatus === "ready" &&
             (products.length
-              ? "Part details come from Product Master. Fill the header, then mark observation and remarks."
+              ? format === "editor"
+                ? "Write this inspection as text in Editor. The header still comes from Product Master."
+                : "Part details come from Product Master. Fill the header, then mark observation and remarks."
               : "Product Master has no parts yet. Add one there first.")}
           {productStatus !== "loading" && productStatus !== "ready" && productStatus !== "missing" && productStatus}
         </p>
       </div>
 
-      <article id="pdi-report" className="pdi-sheet">
+      <article id="pdi-report" className={format === "editor" ? "pdi-sheet pdi-format-editor" : "pdi-sheet"}>
         <header className="pdi-brand">
           <img
             src="/nbe-logo.png"
@@ -389,7 +418,7 @@ export function PdiPage({ embedded = false, layout, token, onLeave, onLogout }) 
             className="pdi-logo"
           />
           <h1 className="pdi-company">{PDI_COMPANY}</h1>
-          <p className="pdi-subtitle">{PDI_TITLE}</p>
+          <p className="pdi-subtitle">{format === "editor" ? "EDITOR" : PDI_TITLE}</p>
         </header>
 
         <div className="pdi-meta">
@@ -423,6 +452,20 @@ export function PdiPage({ embedded = false, layout, token, onLeave, onLogout }) 
           ))}
         </div>
 
+        {format === "editor" ? (
+          <label className="pdi-editor-block">
+            <span className="pdi-editor-label">Editor</span>
+            <textarea
+              className="pdi-editor"
+              aria-label="Editor"
+              rows={14}
+              placeholder="Write the inspection here"
+              value={editorText}
+              onChange={(event) => setEditorText(event.target.value)}
+            />
+          </label>
+        ) : (
+        <>
         <div className="pdi-table-wrap">
           <table className="pdi-table">
             <thead>
@@ -482,6 +525,8 @@ export function PdiPage({ embedded = false, layout, token, onLeave, onLogout }) 
         </div>
 
         <PhoneChecklist checklist={checklist} onField={setRowField} />
+        </>
+        )}
 
         <div className="pdi-signoff">
           <label className="pdi-sign">
