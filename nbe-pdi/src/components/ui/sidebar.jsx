@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react"
+import { useSearchParams } from "react-router-dom"
 import { cva } from "class-variance-authority";
 import { Slot } from "radix-ui"
 
@@ -51,7 +52,57 @@ function SidebarProvider({
   ...props
 }) {
   const isMobile = useIsMobile()
-  const [openMobile, setOpenMobile] = React.useState(false)
+  const [openMobile, setOpenMobileState] = React.useState(false)
+  const [params, setParams] = useSearchParams()
+  const openMobileRef = React.useRef(false)
+  const isMobileRef = React.useRef(isMobile)
+
+  React.useEffect(() => {
+    openMobileRef.current = openMobile
+    isMobileRef.current = isMobile
+  }, [openMobile, isMobile])
+
+  const setOpenMobile = React.useCallback((value) => {
+    const next = typeof value === "function" ? value(openMobileRef.current) : value
+    if (next === openMobileRef.current) return
+    openMobileRef.current = next
+    setOpenMobileState(next)
+    if (!isMobileRef.current) return
+
+    const current = new URLSearchParams(window.location.search)
+    const inUrl = current.get("menu") === "1"
+    if (next && !inUrl) {
+      current.set("menu", "1")
+      setParams(current)
+      return
+    }
+    if (!next && inUrl) {
+      if ((window.history.state?.idx ?? 0) > 0) {
+        window.history.back()
+        return
+      }
+      current.delete("menu")
+      setParams(current, { replace: true })
+    }
+  }, [setParams])
+
+  React.useEffect(() => {
+    const onPop = () => {
+      if (new URLSearchParams(window.location.search).get("menu") === "1") return
+      if (!openMobileRef.current) return
+      openMobileRef.current = false
+      setOpenMobileState(false)
+    }
+    window.addEventListener("popstate", onPop)
+    return () => window.removeEventListener("popstate", onPop)
+  }, [])
+
+  React.useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("menu") !== "1" || openMobileRef.current) return
+    const next = new URLSearchParams(params)
+    next.delete("menu")
+    setParams(next, { replace: true })
+  }, [params, setParams])
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
