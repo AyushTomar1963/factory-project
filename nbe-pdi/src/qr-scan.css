@@ -1,0 +1,92 @@
+@media (max-width: 639px) {
+  .qr-scan-dialog {
+    inset: 0 !important;
+    --tw-translate-x: 0 !important;
+    --tw-translate-y: 0 !important;
+    translate: var(--tw-translate-x) var(--tw-translate-y) !important;
+    transform: none !important;
+    animation: none !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    overflow-y: auto;
+    padding-top: max(0.75rem, env(safe-area-inset-top)) !important;
+    padding-bottom: max(1rem, env(safe-area-inset-bottom)) !important;
+  }
+
+  .qr-view {
+    min-height: 46dvh;
+  }
+}
+
+.qr-view {
+  position: relative;
+  width: 100%;
+  min-height: 16rem;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  background: #0f172a;
+}
+
+.qr-view video {
+  display: block !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: auto !important;
+}
+
+.qr-view::after {
+  content: "";
+  position: absolute;
+  inset: 14%;
+  border: 3px solid #fff;
+  border-radius: 0.75rem;
+  pointer-events: none;
+  box-shadow: 0 0 0 999px rgba(15, 23, 42, 0.35);
+}
+
+#part-qr-print {
+  display: none;
+}
+
+@page part-qr-label {
+  size: 90mm 120mm;
+  margin: 8mm;
+}
+
+@media print {
+  body:has(#part-qr-print) > :not(#part-qr-print) {
+    display: none !important;
+  }
+
+  #part-qr-print {
+    page: part-qr-label;
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    text-align: center;
+    color: #111827;
+    background: #fff;
+  }
+
+  #part-qr-print img {
+    width: 68mm;
+    height: 68mm;
+    margin: 0 auto 4mm;
+  }
+
+  #part-qr-print strong {
+    display: block;
+    font-size: 16pt;
+  }
+
+  #part-qr-print p {
+    margin: 2mm 0 0;
+    font-size: 11pt;
+  }
+}

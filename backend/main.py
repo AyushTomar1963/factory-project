@@ -107,6 +107,7 @@ class InspectionLogRequest(BaseModel):
     invoice_number:     Optional[str] = None
     lot_quantity:       Optional[str] = None
     checking_frequency: Optional[str] = None
+    company:            Optional[str] = None
 
 class AIChatRequest(BaseModel):
     part_name:       str
@@ -202,6 +203,7 @@ def log_inspection(req: InspectionLogRequest, db: Session = Depends(get_db),
         "lot_quantity": req.lot_quantity,
         "checking_frequency": req.checking_frequency,
         "logged_by": current_user["username"],
+        "company": req.company,
     }
 
     model = gemini_model if GEMINI_KEY else None

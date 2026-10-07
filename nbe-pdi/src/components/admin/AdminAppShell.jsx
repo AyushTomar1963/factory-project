@@ -1,0 +1,228 @@
+import {
+  ClipboardCheck,
+  ChevronLeft,
+  LayoutDashboard,
+  LogOut,
+  Package,
+  Truck,
+  Users,
+  ClipboardList,
+} from "lucide-react"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Separator } from "@/components/ui/separator"
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarRail,
+  SidebarTrigger,
+} from "@/components/ui/sidebar"
+import { BrandLogo } from "../layout/Shell"
+import { getAdminTab, ADMIN_TABS } from "../../constants/admin"
+import { returnToPrevious } from "../../hooks/useSection"
+import { useSidebar } from "@/components/ui/sidebar"
+
+const NAV_ICONS = {
+  dashboard: LayoutDashboard,
+  products: Package,
+  suppliers: Truck,
+  users: Users,
+  reports: ClipboardList,
+  pdi: ClipboardCheck,
+}
+
+function AdminSectionNav({ activeTab, onTabChange }) {
+  const { isMobile, setOpenMobile } = useSidebar()
+
+  const choose = (id) => {
+    onTabChange(id)
+    if (isMobile) setOpenMobile(false)
+  }
+
+  return (
+    <SidebarMenu>
+      {ADMIN_TABS.map((tab) => {
+        const Icon = NAV_ICONS[tab.id]
+        return (
+          <SidebarMenuItem key={tab.id}>
+            <SidebarMenuButton
+              type="button"
+              isActive={activeTab === tab.id}
+              onClick={() => choose(tab.id)}
+              tooltip={tab.label}
+              className="min-h-11"
+            >
+              <Icon />
+              <span>{tab.label}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        )
+      })}
+    </SidebarMenu>
+  )
+}
+
+export function AdminAppShell({
+  activeTab,
+  onTabChange,
+  username,
+  onLogout,
+  children,
+}) {
+  const current = getAdminTab(activeTab)
+  const initials = username?.slice(0, 2).toUpperCase() || "AD"
+
+  return (
+    <SidebarProvider defaultOpen>
+      <Sidebar collapsible="icon" className="border-sidebar-border">
+        <SidebarHeader className="border-b border-sidebar-border">
+          <div className="flex items-center gap-3 px-2 py-3 group-data-[collapsible=icon]:justify-center">
+            <BrandLogo size="sm" className="shrink-0 rounded-md" />
+            <div className="min-w-0 group-data-[collapsible=icon]:hidden">
+              <p className="truncate text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                NBE Motors
+              </p>
+              <p className="truncate text-sm font-bold text-sidebar-foreground">
+                Control Center
+              </p>
+            </div>
+          </div>
+        </SidebarHeader>
+
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>Operations</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <AdminSectionNav activeTab={activeTab} onTabChange={onTabChange} />
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+
+        <SidebarFooter className="border-t border-sidebar-border">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton type="button" onClick={onLogout} tooltip="Sign out" className="min-h-11">
+                <LogOut />
+                <span>Sign out</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+        <SidebarRail />
+      </Sidebar>
+
+      <SidebarInset className="min-w-0 bg-transparent">
+        <header className="phone-top sticky top-0 z-20 flex min-h-14 shrink-0 items-center gap-2 border-b border-border/60 bg-background/90 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/75">
+          <SidebarTrigger className="-ml-1 min-h-11 min-w-11" />
+          {activeTab !== "dashboard" && (
+            <button
+              type="button"
+              onClick={() => returnToPrevious(() => onTabChange("dashboard"))}
+              className="inline-flex min-h-11 items-center gap-0.5 text-sm font-bold md:hidden"
+            >
+              <ChevronLeft className="size-5" />
+              Back
+            </button>
+          )}
+          <Separator orientation="vertical" className="mr-2 hidden h-4 md:block" />
+          <div className={activeTab === "dashboard" ? "min-w-0" : "hidden min-w-0 md:block"}>
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem className="hidden md:inline-flex">
+                <button
+                  type="button"
+                  onClick={() => onTabChange("dashboard")}
+                  className="min-h-11 text-muted-foreground hover:text-foreground"
+                >
+                  Admin
+                </button>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator className="hidden md:inline-flex" />
+              <BreadcrumbItem>
+                <BreadcrumbPage>{current.label}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+          </div>
+
+          <div className="ml-auto flex items-center gap-3">
+            <div className="hidden text-right sm:block">
+              <p className="text-sm font-semibold text-foreground">{username}</p>
+              <p className="text-xs text-muted-foreground">Administrator</p>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring">
+                <Avatar className="size-9 border border-brand-200">
+                  <AvatarFallback className="bg-brand-100 text-xs font-bold text-brand-700">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel>{username}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onLogout}>
+                  <LogOut className="size-4" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </header>
+
+        <div className="flex min-w-0 flex-1 flex-col gap-4 p-3 md:gap-6 md:p-6">
+          <div>
+            <h1 className="text-xl font-black tracking-tight text-foreground md:text-2xl">
+              {current.title}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              NBE Motors factory quality control
+            </p>
+          </div>
+          {children}
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
+  )
+}
+
+export function SectionCard({ title, description, children, action }) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <div className="flex flex-col gap-3 border-b border-border bg-muted/40 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-foreground">{title}</h2>
+          {description && (
+            <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+          )}
+        </div>
+        {action}
+      </div>
+      <div className="p-6">{children}</div>
+    </div>
+  )
+}
