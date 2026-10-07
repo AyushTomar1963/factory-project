@@ -6,6 +6,7 @@ import {
   logInspection,
 } from "../api/inspection"
 import { partNumberFromScan } from "../lib/part-scan"
+import { NBE_COMPANY } from "../lib/nbe-report"
 
 const INITIAL_INTAKE = {
   supplier: "",
@@ -164,6 +165,7 @@ export function useInspection(token) {
           invoice_number: intake.invoiceNumber,
           lot_quantity: intake.lotQuantity,
           checking_frequency: intake.checkingFrequency.toString(),
+          company: NBE_COMPANY,
         })
         setSubmitMessage(data.message)
         if (data.report) {

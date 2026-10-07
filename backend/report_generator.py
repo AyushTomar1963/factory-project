@@ -18,15 +18,67 @@ def _format_measurements(measured_values: Dict[str, str]) -> str:
     return "\n".join(lines)
 
 
+def company_name(payload: Dict[str, Any]) -> str:
+    name = str(payload.get("company") or "").strip()
+    return name or "Rushab Industries"
+
+
+def _report_prefix(company: str) -> str:
+    return "NBE" if company.lower().startswith("nbe") else "RIQ"
+
+
+def _replace_other_company(value: str, company: str) -> str:
+    if "rushab" in company.lower():
+        return value
+    value = re.sub(
+        r"Rushab Industries QA System \(Gemini AI\)",
+        f"{company} QA System",
+        value,
+        flags=re.IGNORECASE,
+    )
+    value = re.sub(
+        r"Rushab Industries QA System",
+        f"{company} QA System",
+        value,
+        flags=re.IGNORECASE,
+    )
+    value = re.sub(r"Rushab Industries", company, value, flags=re.IGNORECASE)
+    return re.sub(r"\bRushab\b", "NBE Motors", value, flags=re.IGNORECASE)
+
+
+def _apply_company(value: Any, company: str) -> Any:
+    if isinstance(value, str):
+        return _replace_other_company(value, company)
+    if isinstance(value, list):
+        return [_apply_company(item, company) for item in value]
+    if isinstance(value, dict):
+        return {key: _apply_company(item, company) for key, item in value.items()}
+    return value
+
+
+def _stamp_company(report: Dict[str, Any], company: str) -> Dict[str, Any]:
+    if "rushab" in company.lower():
+        report["company"] = company
+        return report
+    stamped = _apply_company(report, company)
+    stamped["company"] = company
+    stamped["generated_by"] = f"{company} QA System"
+    report_id = str(stamped.get("report_id") or "")
+    if report_id.startswith("RIQ-"):
+        stamped["report_id"] = "NBE-" + report_id[4:]
+    return stamped
+
+
 def build_fallback_report(payload: Dict[str, Any]) -> Dict[str, Any]:
     now = datetime.now(timezone.utc)
     status = payload.get("status", "GREEN")
     disposition = STATUS_LABELS.get(status, status)
     measured = payload.get("measured_values") or {}
+    company = company_name(payload)
 
-    return {
-        "report_id": now.strftime("RIQ-%Y%m%d-%H%M%S"),
-        "company": "Rushab Industries",
+    return _stamp_company({
+        "report_id": now.strftime(f"{_report_prefix(company)}-%Y%m%d-%H%M%S"),
+        "company": company,
         "title": "Factory Quality Inspection Report",
         "inspection_date": now.isoformat(),
         "disposition": disposition,
@@ -73,8 +125,8 @@ def build_fallback_report(payload: Dict[str, Any]) -> Dict[str, Any]:
             "Retain this report with the lot traceability record.",
             "Escalate to supervisor if disposition is HOLD or FAIL.",
         ],
-        "generated_by": "Rushab Industries QA System",
-    }
+        "generated_by": f"{company} QA System",
+    }, company)
 
 
 def _extract_json(text: str) -> Optional[Dict[str, Any]]:
@@ -100,8 +152,16 @@ def generate_inspection_report(gemini_model, payload: Dict[str, Any]) -> Dict[st
     disposition = STATUS_LABELS.get(status, status)
     measured = _format_measurements(payload.get("measured_values") or {})
     now = datetime.now(timezone.utc).isoformat()
+    company = company_name(payload)
+    other_company = ""
+    if "rushab" not in company.lower():
+        other_company = (
+            ' Never write "Rushab" or "Rushab Industries". '
+            "That name belongs to a different business and must not appear anywhere in this report."
+        )
 
-    prompt = f"""You are a senior factory QA documentation specialist for Rushab Industries.
+    prompt = f"""You are a senior factory QA documentation specialist for {company}.
+The company on this report is exactly "{company}".{other_company}
 Create a formal, systematic inspection report as valid JSON only (no markdown fences).
 
 Input data:
@@ -121,8 +181,8 @@ Input data:
 
 Return JSON with exactly these keys:
 {{
-  "report_id": "RIQ-YYYYMMDD-HHMMSS style string",
-  "company": "Rushab Industries",
+  "report_id": "{_report_prefix(company)}-YYYYMMDD-HHMMSS style string",
+  "company": "{company}",
   "title": "Factory Quality Inspection Report",
   "inspection_date": "{now}",
   "disposition": "{disposition}",
@@ -131,7 +191,7 @@ Return JSON with exactly these keys:
     {{"heading": "section title", "body": "detailed paragraph or bullet text"}}
   ],
   "recommendations": ["action item 1", "action item 2"],
-  "generated_by": "Rushab Industries QA System (Gemini AI)"
+  "generated_by": "{company} QA System"
 }}
 
 Include at least these sections: Part Identification, Lot Traceability, Inspection Method & Stage,
@@ -147,17 +207,17 @@ Use professional industrial QA language. Be factual; do not invent measurements 
         if not parsed:
             return fallback
 
-        parsed.setdefault("company", "Rushab Industries")
+        parsed.setdefault("company", company)
         parsed.setdefault("title", "Factory Quality Inspection Report")
         parsed.setdefault("disposition", disposition)
         parsed.setdefault("inspection_date", now)
         parsed.setdefault("report_id", fallback["report_id"])
         parsed.setdefault("recommendations", fallback["recommendations"])
-        parsed.setdefault("generated_by", "Rushab Industries QA System (Gemini AI)")
+        parsed.setdefault("generated_by", f"{company} QA System")
         if "sections" not in parsed or not isinstance(parsed["sections"], list):
             parsed["sections"] = fallback["sections"]
         if "executive_summary" not in parsed:
             parsed["executive_summary"] = fallback["executive_summary"]
-        return parsed
+        return _stamp_company(parsed, company)
     except Exception:
         return fallback

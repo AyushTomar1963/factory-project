@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Download, FileText, Printer } from "lucide-react"
 import {
   Dialog,
@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "../ui/qa-button"
+import { asNbeReport } from "../../lib/nbe-report"
 import "./report-print.css"
 
 const PRINT_HOST_ID = "inspection-report-print-host"
@@ -53,7 +54,8 @@ function formatDate(value) {
 }
 
 export function InspectionReportDialog({ open, report, inspector, onClose, onNewInspection }) {
-  const logoKey = report?.report_id ?? ""
+  const shown = useMemo(() => asNbeReport(report), [report])
+  const logoKey = shown?.report_id ?? ""
   const [hiddenLogoKey, setHiddenLogoKey] = useState(null)
   const showLogo = hiddenLogoKey !== logoKey
 
@@ -116,17 +118,17 @@ export function InspectionReportDialog({ open, report, inspector, onClose, onNew
               )}
               <div>
                 <p className="text-sm font-bold text-brand-800">
-                  {report.company || "NBE Motors Pvt. Ltd."}
+                  {shown.company}
                 </p>
                 <p className="text-xs text-muted-foreground">Quality Assurance Division</p>
               </div>
             </div>
             <div className="report-print-meta">
               <p>
-                <strong>Report ID:</strong> {report.report_id}
+                <strong>Report ID:</strong> {shown.report_id}
               </p>
               <p>
-                <strong>Date:</strong> {formatDate(report.inspection_date)}
+                <strong>Date:</strong> {formatDate(shown.inspection_date)}
               </p>
               <p>
                 <strong>Inspector:</strong> {inspector || "N/A"}
@@ -134,35 +136,35 @@ export function InspectionReportDialog({ open, report, inspector, onClose, onNew
             </div>
           </header>
 
-          <h1 className="report-print-title">{report.title}</h1>
+          <h1 className="report-print-title">{shown.title}</h1>
 
           <div className="mb-3">
-            <span className={dispositionClass(report.disposition)}>
-              {report.disposition}
+            <span className={dispositionClass(shown.disposition)}>
+              {shown.disposition}
             </span>
           </div>
 
-          {report.executive_summary && (
+          {shown.executive_summary && (
             <section className="report-print-summary">
               <p className="text-xs font-bold uppercase tracking-wide text-brand-700">
                 Executive summary
               </p>
-              <p className="mt-1 text-sm">{report.executive_summary}</p>
+              <p className="mt-1 text-sm">{shown.executive_summary}</p>
             </section>
           )}
 
-          {report.sections?.map((section) => (
+          {shown.sections?.map((section) => (
             <section key={section.heading} className="report-print-section">
               <h3>{section.heading}</h3>
               <p>{section.body}</p>
             </section>
           ))}
 
-          {report.recommendations?.length > 0 && (
+          {shown.recommendations?.length > 0 && (
             <section className="report-print-recommendations">
               <h3 className="text-sm font-bold text-brand-800">Recommendations</h3>
               <ul>
-                {report.recommendations.map((item) => (
+                {shown.recommendations.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>
@@ -170,7 +172,7 @@ export function InspectionReportDialog({ open, report, inspector, onClose, onNew
           )}
 
           <footer className="report-print-footer">
-            <p>{report.generated_by || "NBE Motors QA System"}</p>
+            <p>{shown.generated_by}</p>
             <p className="no-print mt-2 flex items-center gap-1">
               <Download className="size-3" />
               Use Print → Save as PDF for archival copy.
