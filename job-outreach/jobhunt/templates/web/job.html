@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block body %}
+<p class="small"><a href="/jobs">&larr; Jobs</a></p>
+<div class="spread">
+  <div><h1>{{ job.title }}</h1><p class="sub">{{ job.company }} &middot; {{ job.location or 'n/a' }} &middot; <span class="pill {{ job.status }}">{{ job.status }}</span>
+  {% if job.url %} &middot; <a href="{{ job.url }}" target="_blank" rel="noopener">view posting</a>{% endif %}</p></div>
+  <div class="row">
+    <form method="post" action="/jobs/{{ job.id }}/tailor"><button class="btn primary">{{ 'Re-tailor' if doc else 'Tailor now' }}</button></form>
+    {% if job.status != 'skipped' %}
+    <form method="post" action="/jobs/{{ job.id }}/status"><input type="hidden" name="status" value="skipped"><button class="btn bad">Skip</button></form>
+    {% else %}
+    <form method="post" action="/jobs/{{ job.id }}/status"><input type="hidden" name="status" value="shortlisted"><button class="btn">Restore</button></form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid g2">
+  <div class="card">
+    <h2>Fit: {{ ((job.match_score or 0) * 100)|round|int }}%</h2>
+    {% if payload %}
+      <div class="small muted">You have</div>
+      {% for k in payload.matched %}<span class="chip">{{ k }}</span>{% endfor %}
+      <div class="small muted" style="margin-top:8px">Posting asks for, not on your resume (never added by tailoring)</div>
+      {% for k in payload.missing %}<span class="chip miss">{{ k }}</span>{% else %}<span class="muted small">none</span>{% endfor %}
+    {% else %}
+      {% for k in keywords %}<span class="chip gray">{{ k }}</span>{% else %}<span class="muted">No known skills detected in the posting.</span>{% endfor %}
+    {% endif %}
+  </div>
+  <div class="card">
+    <h2>Documents</h2>
+    {% if doc %}
+      <div class="row">
+        {% if doc.resume_pdf %}<a class="btn" href="/files/{{ job.id }}/resume.pdf" target="_blank">Resume PDF</a>{% endif %}
+        <a class="btn" href="/files/{{ job.id }}/resume.html" target="_blank">Resume HTML</a>
+        {% if payload.cover_pdf %}<a class="btn" href="/files/{{ job.id }}/cover.pdf" target="_blank">Cover letter PDF</a>{% endif %}
+      </div>
+      <p class="small muted">Engine: {{ doc.engine }} &middot; {{ doc.created_at[:16].replace('T', ' ') }}</p>
+      {% if violations %}
+      <div class="warnbox small"><b>Fact guard rejected {{ violations|length }} proposal(s)</b> and kept your original wording:
+        <ul style="margin:6px 0 0 18px; padding:0">{% for v in violations %}<li>{{ v }}</li>{% endfor %}</ul></div>
+      {% else %}<p class="small ok-t">Fact guard: all rewrites trace back to your master resume.</p>{% endif %}
+    {% else %}<p class="muted">Not tailored yet.</p>{% endif %}
+  </div>
+</div>
+
+{% if doc %}
+<div class="grid g2">
+  <div class="card"><h2>Email pitch</h2><pre class="desc">{{ doc.pitch }}</pre></div>
+  <div class="card"><h2>Cover letter</h2><pre class="desc">{{ doc.cover_letter }}</pre></div>
+</div>
+{% endif %}
+
+<div class="grid g2">
+  <div class="card">
+    <h2>Contacts at {{ job.company }}</h2>
+    {% if contacts %}
+    <table>{% for c in contacts %}
+      <tr><td><b>{{ c.name }}</b><div class="small muted">{{ c.title or '' }}</div></td>
+          <td class="small">{% if c.email %}{{ c.email }} <span class="muted">({{ c.email_confidence or '?' }}%)</span>{% elif c.linkedin_url %}<a href="{{ c.linkedin_url }}" target="_blank" rel="noopener">LinkedIn</a>{% else %}<span class="muted">no channel</span>{% endif %}</td>
+          <td class="small muted">{{ c.source }}</td></tr>
+    {% endfor %}</table>
+    {% else %}<p class="muted">None yet. Run "Find hiring managers".</p>{% endif %}
+  </div>
+  <div class="card">
+    <h2>Outreach</h2>
+    {% if outreach %}
+    <table>{% for o in outreach %}
+      <tr><td>{{ o.name }}<div class="small muted">{{ o.channel }}</div></td><td><span class="pill {{ o.status }}">{{ o.status }}</span></td><td><a class="small" href="/outreach?status={{ o.status }}">open</a></td></tr>
+    {% endfor %}</table>
+    {% else %}<p class="muted">No drafts yet.</p>{% endif %}
+  </div>
+</div>
+
+<div class="card"><h2>Job description</h2><pre class="desc">{{ job.description }}</pre></div>
+{% endblock %}

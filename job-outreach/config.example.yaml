@@ -1,0 +1,62 @@
+# Copy to config.yaml and edit.
+
+candidate:
+  # Master resume in JSON Resume format (https://jsonresume.org/schema).
+  # This file is the single source of truth; tailoring can never change its facts.
+  resume: examples/master_resume.json
+
+search:
+  # A job is kept if its title contains ANY include term and NO exclude term.
+  title_include: [engineer, developer, sre, platform]
+  title_exclude: [intern, principal, director, staff]
+  # Empty list = any location. Matched case-insensitively against the job location.
+  locations: [remote, new york, san francisco]
+  # 0..1 share of the job's detected skills that you actually have.
+  min_match_score: 0.25
+
+# Companies to watch. `board` is the token from the public ATS job-board URL:
+#   greenhouse: boards.greenhouse.io/<board>
+#   lever:      jobs.lever.co/<board>
+#   ashby:      jobs.ashbyhq.com/<board>
+#   workday:    <tenant>.wd<N>.myworkdayjobs.com/<site>  ->  board: "<tenant>/<N>/<site>"
+companies:
+  - name: Example Greenhouse Co
+    domain: example.com
+    ats: greenhouse
+    board: example
+  - name: Example Lever Co
+    domain: example.org
+    ats: lever
+    board: example
+
+targets:
+  # Titles to look for at each company, in priority order.
+  titles:
+    - Engineering Manager
+    - Head of Engineering
+    - VP of Engineering
+    - Director of Engineering
+    - Head of Talent
+    - Technical Recruiter
+  max_contacts_per_company: 2
+  # Hunter "confidence" floor (0-100) for accepting an address.
+  min_email_confidence: 80
+
+outreach:
+  # Hard ceiling per sending domain per day (warm-up can lower it further).
+  daily_cap: 25
+  # Warm-up ramp keyed by days since the first send from this domain.
+  warmup:
+    - {from_day: 0, cap: 5}
+    - {from_day: 7, cap: 10}
+    - {from_day: 14, cap: 15}
+    - {from_day: 21, cap: 20}
+  min_delay_seconds: 90
+  max_delay_seconds: 300
+  # Don't contact the same person again within this many days.
+  recontact_after_days: 90
+  # Pause automatically if the hard-bounce rate over the last 100 sends exceeds this.
+  max_bounce_rate: 0.05
+  # Refuse to send unless SPF, DKIM and DMARC are all published for the sender domain.
+  require_authentication: true
+  attach_resume: true

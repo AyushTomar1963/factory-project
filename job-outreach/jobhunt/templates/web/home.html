@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Overview</h1>
+<p class="sub">{{ companies|length }} companies watched across Greenhouse, Lever, Ashby and Workday.</p>
+
+<div class="grid g4">
+  <div class="card stat"><div class="n">{{ stats.jobs.get('shortlisted', 0) }}</div><div class="l">Shortlisted jobs</div></div>
+  <div class="card stat"><div class="n">{{ stats.jobs.get('tailored', 0) + stats.jobs.get('contacted', 0) }}</div><div class="l">Tailored</div></div>
+  <div class="card stat"><div class="n">{{ stats.contacts_with_email }}<span class="muted small"> / {{ stats.contacts }}</span></div><div class="l">Contacts with email</div></div>
+  <div class="card stat"><div class="n">{{ stats.outreach.get('email:sent', 0) }}</div><div class="l">Emails sent</div></div>
+</div>
+
+<div class="card">
+  <h2>Pipeline</h2>
+  <div class="row">
+    <form method="post" action="/actions/discover"><button class="btn primary">1. Discover jobs</button></form>
+    <form method="post" action="/actions/enrich"><button class="btn" {{ 'disabled title="set APOLLO_API_KEY or HUNTER_API_KEY"'|safe if not enrich }}>2. Find hiring managers</button></form>
+    <form method="post" action="/actions/tailor"><button class="btn">3. Tailor documents (10)</button></form>
+    <form method="post" action="/actions/queue"><button class="btn">4. Draft outreach</button></form>
+    <a class="btn ok" href="/outreach">5. Review &amp; approve</a>
+  </div>
+  <p class="muted small" style="margin:12px 0 0">
+    Tailoring engine: <b>{{ 'LLM' if llm else 'offline deterministic' }}</b>.
+    Enrichment: <b>{{ 'configured' if enrich else 'not configured' }}</b>.
+    Only approved emails are ever sent, from <a href="/sending">Sending</a> or <code>jobhunt send --live</code>.
+  </p>
+</div>
+
+<div class="grid g2">
+  <div class="card">
+    <div class="spread"><h2>Best matches</h2><a href="/jobs" class="small">all jobs</a></div>
+    {% if top %}
+    <table>
+      {% for j in top %}
+      <tr><td><a href="/jobs/{{ j.id }}">{{ j.title }}</a><div class="muted small">{{ j.company }} &middot; {{ j.location or 'n/a' }}</div></td>
+          <td style="text-align:right"><span class="score">{{ (j.match_score * 100)|round|int }}%</span><br><span class="pill {{ j.status }}">{{ j.status }}</span></td></tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="muted">No shortlisted jobs yet. Run discovery.</p>{% endif %}
+  </div>
+  <div class="card">
+    <h2>Sending budget</h2>
+    {% if allow %}
+      {% if allow.paused_reason %}<div class="warnbox">Paused: {{ allow.paused_reason }}</div>
+      {% else %}
+      <div class="stat"><div class="n">{{ allow.remaining }}<span class="muted small"> of {{ allow.cap }} left today</span></div></div>
+      <p class="muted small">Warm-up day {{ allow.warmup_day }} &middot; recent bounce rate {{ (allow.bounce_rate * 100)|round(1) }}%</p>
+      {% endif %}
+      <a class="btn sm" href="/sending?check=1">Check SPF / DKIM / DMARC</a>
+    {% else %}
+      <p class="muted">Set <code>SENDER_EMAIL</code> and SMTP settings in <code>.env</code> to enable sending.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

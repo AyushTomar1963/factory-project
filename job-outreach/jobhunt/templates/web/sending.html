@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Sending &amp; deliverability</h1>
+<div class="spread">
+  <p class="sub">Sender: <b>{{ sender or 'not configured' }}</b> &middot; {{ approved }} approved email(s) waiting.</p>
+  <form method="post" action="/actions/send" onsubmit="return confirm('Send approved emails now? All safety checks run first.')">
+    <button class="btn primary" {{ 'disabled' if send_state.running or not approved }}>{{ 'Sending...' if send_state.running else 'Send approved now' }}</button>
+  </form>
+</div>
+{% if send_state.started %}
+<div class="card">
+  <h2>Batch started {{ send_state.started }}{% if send_state.running %} <span class="pill draft">running</span>{% endif %}</h2>
+  {% if send_state.summary %}<p><b>{{ send_state.summary }}</b></p>{% endif %}
+  <pre class="desc small">{{ send_state.log | join("\n") or "waiting for first message..." }}</pre>
+  {% if send_state.running %}<p class="small muted">Refresh to update.</p>{% endif %}
+</div>
+{% endif %}
+
+<div class="grid g2">
+  <div class="card">
+    <div class="spread"><h2>Domain authentication</h2><a class="btn sm" href="/sending?check=1">Run check</a></div>
+    {% if report %}
+    <table>
+      {% for c in report.checks %}
+      <tr><td style="width:70px">{% if c.ok %}<span class="ok-t">PASS</span>{% elif c.required %}<span class="bad-t">FAIL</span>{% else %}<span class="warn-t">WARN</span>{% endif %}</td>
+          <td><b>{{ c.name }}</b><div class="small muted" style="word-break:break-all">{{ c.detail }}</div></td></tr>
+      {% endfor %}
+    </table>
+    <p class="{{ 'ok-t' if report.ok else 'bad-t' }}">{{ 'Ready to send.' if report.ok else 'Sending is blocked until the FAIL items are fixed.' }}</p>
+    {% else %}<p class="muted">Checks SPF, DKIM, DMARC, MX and forward-confirmed reverse DNS for your sender domain.</p>{% endif %}
+  </div>
+  <div class="card">
+    <h2>Throttle</h2>
+    {% if allow %}
+    <table>
+      <tr><td>Today</td><td><b>{{ allow.sent_today }}</b> sent, <b>{{ allow.remaining }}</b> left (cap {{ allow.cap }})</td></tr>
+      <tr><td>Warm-up</td><td>day {{ allow.warmup_day }}: {% for s in outreach_cfg.warmup %}{{ s.cap }}/day from day {{ s.from_day }}{{ ', ' if not loop.last }}{% endfor %}, then {{ outreach_cfg.daily_cap }}/day</td></tr>
+      <tr><td>Spacing</td><td>{{ outreach_cfg.min_delay_seconds }}-{{ outreach_cfg.max_delay_seconds }}s random delay between messages</td></tr>
+      <tr><td>Bounces</td><td>{{ (allow.bounce_rate * 100)|round(1) }}% of last 100 (auto-pause above {{ (outreach_cfg.max_bounce_rate * 100)|round|int }}%)</td></tr>
+      <tr><td>Re-contact</td><td>never within {{ outreach_cfg.recontact_after_days }} days</td></tr>
+    </table>
+    {% if allow.paused_reason %}<div class="warnbox" style="margin-top:10px">Paused: {{ allow.paused_reason }}</div>{% endif %}
+    {% else %}<p class="muted">Configure SENDER_EMAIL first.</p>{% endif %}
+  </div>
+</div>
+
+<div class="grid g2">
+  <div class="card">
+    <h2>Recent sends</h2>
+    {% if log %}<table>{% for l in log %}
+      <tr><td class="small">{{ l.at[:16].replace('T', ' ') }}</td><td class="small">{{ l.recipient }}</td><td><span class="pill {{ l.outcome }}">{{ l.outcome }}</span></td></tr>
+    {% endfor %}</table>{% else %}<p class="muted">Nothing sent yet.</p>{% endif %}
+  </div>
+  <div class="card">
+    <h2>Suppression list</h2>
+    {% if suppressed %}<table>{% for s in suppressed %}
+      <tr><td class="small">{{ s.email }}</td><td><span class="pill">{{ s.reason }}</span></td><td class="small muted">{{ s.created_at[:10] }}</td></tr>
+    {% endfor %}</table>{% else %}<p class="muted">Empty. Unsubscribes and hard bounces land here automatically.</p>{% endif %}
+  </div>
+</div>
+{% endblock %}

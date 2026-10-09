@@ -1,0 +1,50 @@
+services:
+  - type: web
+    name: jobhunt
+    runtime: python
+    rootDir: job-outreach
+    plan: starter
+    buildCommand: pip install -e .
+    startCommand: jobhunt serve --host 0.0.0.0
+    healthCheckPath: /healthz
+    disk:
+      name: jobhunt-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: JOBHUNT_CONFIG
+        value: /var/data/config.yaml
+      - key: JOBHUNT_DB
+        value: /var/data/jobhunt.db
+      - key: JOBHUNT_OUTPUT_DIR
+        value: /var/data/output
+      - key: UNSUBSCRIBE_SECRET
+        generateValue: true
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: DKIM_SELECTOR
+        sync: false
+      - key: SENDER_POSTAL_ADDRESS
+        sync: false
+      - key: DASHBOARD_PASSWORD
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: SENDER_NAME
+        sync: false
+      - key: SENDER_EMAIL
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+      - key: APOLLO_API_KEY
+        sync: false
+      - key: HUNTER_API_KEY
+        sync: false

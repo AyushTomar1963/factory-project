@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="spread"><div><h1>Jobs</h1><p class="sub">Pulled straight from employer ATS boards, scored against your master resume.</p></div>
+<form method="get" style="width:280px"><input type="hidden" name="status" value="{{ status }}"><input type="search" name="q" value="{{ q }}" placeholder="Search title, company, location"></form></div>
+
+<div class="tabs">
+  {% for s in ['shortlisted', 'tailored', 'contacted', 'filtered', 'skipped', 'all'] %}
+  <a href="/jobs?status={{ s }}&q={{ q }}" class="{{ 'on' if status == s }}">{{ s|capitalize }}{% if s != 'all' %} <span class="muted">{{ counts.get(s, 0) }}</span>{% endif %}</a>
+  {% endfor %}
+</div>
+
+<div class="card" style="padding:6px 8px">
+{% if jobs %}
+<table>
+  <tr><th>Role</th><th>Location</th><th>Match</th><th>Status</th><th>Posted</th><th></th></tr>
+  {% for j in jobs %}
+  <tr>
+    <td><a href="/jobs/{{ j.id }}"><b>{{ j.title }}</b></a><div class="muted small">{{ j.company }}{% if j.department %} &middot; {{ j.department }}{% endif %} &middot; {{ j.ats }}</div></td>
+    <td class="small">{{ j.location or '' }}</td>
+    <td><span class="score">{{ ((j.match_score or 0) * 100)|round|int }}%</span><div class="bar"><i style="width: {{ ((j.match_score or 0) * 100)|round|int }}%"></i></div></td>
+    <td><span class="pill {{ j.status }}">{{ j.status }}</span></td>
+    <td class="small muted">{{ (j.posted_at or '')[:10] }}</td>
+    <td>{% if j.url %}<a class="small" href="{{ j.url }}" target="_blank" rel="noopener">posting</a>{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}<p class="muted" style="padding:12px">No jobs in this view.</p>{% endif %}
+</div>
+{% endblock %}
