@@ -180,6 +180,7 @@ def discover(companies: list[Company], client: httpx.Client | None = None,
                     jobs = FETCHERS[company.ats](client, company)
                 for job in jobs:
                     job.update(company=company.name, domain=company.domain.lower(), ats=company.ats)
+                    job["description"] = re.sub(r"\n\s*\n(\s*\n)+", "\n\n", job.get("description") or "").strip()
                     out.append(job)
             except (httpx.HTTPError, ValueError, KeyError) as exc:
                 errors.append(f"{company.name} ({company.ats}/{company.board}): {exc}")
