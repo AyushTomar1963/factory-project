@@ -6,3 +6,4 @@ config.yaml
 data/
 .pytest_cache/
 *.egg-info/
+.vercel/

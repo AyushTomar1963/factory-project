@@ -137,6 +137,14 @@ If you'd rather not host anything, run `jobhunt serve` on your own machine and
 expose it through a tunnel (with `DASHBOARD_PASSWORD` set, only `/u/*` and
 `/healthz` are reachable without a password).
 
+## Vercel front door
+
+`vercel/` is a code-free Vercel project that rewrites every request to the
+Render service, so the public URL can live on Vercel while the stateful app
+(SQLite, background discovery and sending) stays on Render. Point
+`PUBLIC_BASE_URL` on Render at the Vercel URL so unsubscribe links use it.
+See `vercel/README.md`.
+
 ## Tests
 
 ```bash
