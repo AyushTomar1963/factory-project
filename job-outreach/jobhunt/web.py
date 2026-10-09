@@ -73,28 +73,47 @@ def home(request: Request):
         "SELECT * FROM jobs WHERE status IN ('shortlisted','tailored') ORDER BY match_score DESC LIMIT 8"
     )
     return _render(request, "home.html", stats=pipeline.stats(db), allow=allow, top=top,
-                   companies=settings.companies, llm=bool(settings.secrets.llm_api_key),
+                   companies=settings.companies, llm=bool(settings.secrets.llm_api_key), stage=stage_state,
                    enrich=bool(settings.secrets.apollo_api_key or settings.secrets.hunter_api_key))
+
+
+STAGES = {
+    "discover": lambda m: pipeline.run_discover(settings, db, m),
+    "enrich": lambda m: pipeline.run_enrich(settings, db),
+    "tailor": lambda m: pipeline.run_tailor(settings, db, m, pipeline.make_llm(settings), limit=10),
+    "queue": lambda m: pipeline.run_queue(settings, db, m),
+}
+# Stages run in a background thread: discovery can take minutes, longer than
+# a proxy in front of the app (e.g. Vercel rewrites) will hold a request open.
+_stage_lock = threading.Lock()
+stage_state: dict = {"running": None, "result": None, "thread": None}
+
+
+def _stage_worker(stage: str) -> None:
+    try:
+        res = STAGES[stage](pipeline.load_master(settings))
+        counts = ", ".join(f"{k}: {v}" for k, v in res.counts.items()) or "nothing to do"
+        errors = f" | {len(res.errors)} error(s): {res.errors[0]}" if res.errors else ""
+        stage_state["result"] = f"{stage}: {counts}{errors}"
+    except Exception as exc:  # shown on the overview page
+        stage_state["result"] = f"{stage} failed: {exc}"
+    finally:
+        stage_state["running"] = None
 
 
 @app.post("/actions/{stage}")
 def run_stage(stage: str):
     if stage == "send":
         return send_now()
-    master = pipeline.load_master(settings)
-    if stage == "discover":
-        res = pipeline.run_discover(settings, db, master)
-    elif stage == "enrich":
-        res = pipeline.run_enrich(settings, db)
-    elif stage == "tailor":
-        res = pipeline.run_tailor(settings, db, master, pipeline.make_llm(settings), limit=10)
-    elif stage == "queue":
-        res = pipeline.run_queue(settings, db, master)
-    else:
+    if stage not in STAGES:
         raise HTTPException(404)
-    counts = ", ".join(f"{k}: {v}" for k, v in res.counts.items()) or "nothing to do"
-    errors = f" | {len(res.errors)} error(s): {res.errors[0]}" if res.errors else ""
-    return _back("/", f"{stage}: {counts}{errors}")
+    with _stage_lock:
+        if stage_state["running"]:
+            return _back("/", f"{stage_state['running']} is still running")
+        stage_state.update(running=stage, result=None)
+        stage_state["thread"] = threading.Thread(target=_stage_worker, args=(stage,), daemon=True)
+        stage_state["thread"].start()
+    return _back("/", f"{stage} started")
 
 
 @app.get("/jobs", response_class=HTMLResponse)

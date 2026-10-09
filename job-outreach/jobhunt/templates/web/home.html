@@ -10,13 +10,21 @@
   <div class="card stat"><div class="n">{{ stats.outreach.get('email:sent', 0) }}</div><div class="l">Emails sent</div></div>
 </div>
 
+{% if stage.running %}
+<meta http-equiv="refresh" content="4;url=/">
+<div class="warnbox" style="margin-bottom:18px">Running <b>{{ stage.running }}</b>&hellip; this page refreshes automatically.</div>
+{% elif stage.result %}
+<div class="flash">Last run: {{ stage.result }}</div>
+{% endif %}
+
 <div class="card">
   <h2>Pipeline</h2>
   <div class="row">
-    <form method="post" action="/actions/discover"><button class="btn primary">1. Discover jobs</button></form>
-    <form method="post" action="/actions/enrich"><button class="btn" {{ 'disabled title="set APOLLO_API_KEY or HUNTER_API_KEY"'|safe if not enrich }}>2. Find hiring managers</button></form>
-    <form method="post" action="/actions/tailor"><button class="btn">3. Tailor documents (10)</button></form>
-    <form method="post" action="/actions/queue"><button class="btn">4. Draft outreach</button></form>
+    {% set busy = 'disabled' if stage.running %}
+    <form method="post" action="/actions/discover"><button class="btn primary" {{ busy }}>1. Discover jobs</button></form>
+    <form method="post" action="/actions/enrich"><button class="btn" {{ 'disabled title="set APOLLO_API_KEY or HUNTER_API_KEY"'|safe if not enrich else busy }}>2. Find hiring managers</button></form>
+    <form method="post" action="/actions/tailor"><button class="btn" {{ busy }}>3. Tailor documents (10)</button></form>
+    <form method="post" action="/actions/queue"><button class="btn" {{ busy }}>4. Draft outreach</button></form>
     <a class="btn ok" href="/outreach">5. Review &amp; approve</a>
   </div>
   <p class="muted small" style="margin:12px 0 0">

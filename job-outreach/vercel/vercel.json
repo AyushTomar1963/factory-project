@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/", "destination": "https://jobhunt-outreach.onrender.com/" },
+    { "source": "/:path*", "destination": "https://jobhunt-outreach.onrender.com/:path*" }
+  ]
+}

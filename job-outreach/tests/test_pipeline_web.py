@@ -109,7 +109,9 @@ def test_dashboard_flow(web):
     respx.get("https://boards-api.greenhouse.io/v1/boards/acme/jobs").mock(return_value=httpx.Response(200, json=GREENHOUSE_JOBS))
     assert client.get("/").status_code == 200
     r = client.post("/actions/discover")
-    assert r.status_code == 200 and "shortlisted: 1" in r.text
+    assert r.status_code == 200 and "discover started" in r.text
+    web_mod.stage_state["thread"].join(30)
+    assert "Last run: discover:" in client.get("/").text and "shortlisted: 1" in client.get("/").text
     job_id = web_mod.db.scalar("SELECT id FROM jobs WHERE status='shortlisted'")
     r = client.post(f"/jobs/{job_id}/tailor")
     assert "tailored with deterministic" in r.text
@@ -121,6 +123,7 @@ def test_dashboard_flow(web):
     web_mod.db.upsert_contact({"company": "Acme", "domain": "acme.com", "name": "Kim Ng", "first_name": "Kim",
                                "email": "kim@acme.com", "source": "test"})
     client.post("/actions/queue")
+    web_mod.stage_state["thread"].join(30)
     oid = web_mod.db.scalar("SELECT id FROM outreach")
     assert "Approve for sending" in client.get("/outreach").text
     r = client.post(f"/outreach/{oid}", data={"action": "approve", "subject": "Edited subject", "body": "Edited body"})
