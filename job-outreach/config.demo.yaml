@@ -1,0 +1,26 @@
+# Demo configuration used by the hosted Render instance.
+# Real public ATS boards so "Discover jobs" returns live postings.
+
+candidate:
+  resume: examples/master_resume.json
+
+search:
+  title_include: [engineer, developer, sre, platform]
+  title_exclude: [intern, principal, director, staff, manager]
+  locations: []
+  min_match_score: 0.3
+
+companies:
+  - {name: Airbnb, domain: airbnb.com, ats: greenhouse, board: airbnb}
+  - {name: Palantir, domain: palantir.com, ats: lever, board: palantir}
+  - {name: Ramp, domain: ramp.com, ats: ashby, board: ramp}
+
+targets:
+  titles: [Engineering Manager, Head of Engineering, VP of Engineering, Director of Engineering, Head of Talent, Technical Recruiter]
+  max_contacts_per_company: 2
+  min_email_confidence: 80
+
+outreach:
+  daily_cap: 25
+  require_authentication: true
+  attach_resume: true
