@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
@@ -40,21 +41,40 @@ _send_lock = threading.Lock()
 send_state: dict = {"running": False, "started": None, "log": [], "summary": None}
 
 
+def _password_ok(header: str, password: str) -> bool:
+    if header.lower().startswith("bearer "):
+        return pysecrets.compare_digest(header[7:], password)
+    if header.lower().startswith("basic "):
+        try:
+            _, _, given = base64.b64decode(header[6:]).decode().partition(":")
+            return pysecrets.compare_digest(given, password)
+        except (ValueError, UnicodeDecodeError):
+            return False
+    return False
+
+
 @app.middleware("http")
 async def basic_auth(request: Request, call_next):
     password = os.environ.get("DASHBOARD_PASSWORD")
-    if password and not request.url.path.startswith(PUBLIC_PREFIXES):
-        header = request.headers.get("authorization", "")
-        ok = False
-        if header.lower().startswith("basic "):
-            try:
-                _, _, given = base64.b64decode(header[6:]).decode().partition(":")
-                ok = pysecrets.compare_digest(given, password)
-            except (ValueError, UnicodeDecodeError):
-                ok = False
-        if not ok:
-            return Response("authentication required", 401, {"WWW-Authenticate": 'Basic realm="jobhunt"'})
+    path = request.url.path
+    if (password and request.method != "OPTIONS" and not path.startswith(PUBLIC_PREFIXES)
+            and not _password_ok(request.headers.get("authorization", ""), password)):
+        if path.startswith("/api/"):
+            # No WWW-Authenticate here, so browsers don't pop their own login box over the SPA's.
+            return JSONResponse({"error": "authentication required"}, 401)
+        return Response("authentication required", 401, {"WWW-Authenticate": 'Basic realm="jobhunt"'})
     return await call_next(request)
+
+
+# The Vercel frontend normally calls /api through a same-origin rewrite, so CORS
+# never comes into play; this covers calling the Render URL directly instead.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=os.environ.get("CORS_ORIGIN_REGEX", r"https://[\w.-]+\.vercel\.app|http://localhost(:\d+)?"),
+    allow_methods=["*"],
+    allow_headers=["Authorization", "Content-Type"],
+    expose_headers=["Content-Disposition"],
+)
 
 
 def _render(request: Request, name: str, **ctx) -> HTMLResponse:
@@ -130,21 +150,25 @@ def _stage_worker(stage: str) -> None:
         stage_state["running"] = None
 
 
-@app.post("/actions/{stage}")
-def run_stage(stage: str):
-    if stage == "send":
-        return send_now()
+def start_stage(stage: str) -> tuple[bool, str]:
     if stage in ("cycle", "tick"):
         started = autopilot.start_background(settings, db, force_cycle=stage == "cycle")
-        return _back("/", "Autopilot " + ("started" if started else "is already running"))
+        return started, "Autopilot " + ("started" if started else "is already running")
     if stage not in STAGES:
         raise HTTPException(404)
     with _stage_lock:
         if stage_state["running"]:
-            return _back("/", f"{stage_state['running']} is still running")
+            return False, f"{stage_state['running']} is still running"
         stage_state.update(running=stage, result=None)
         threading.Thread(target=_stage_worker, args=(stage,), daemon=True).start()
-    return _back("/", f"{stage} started")
+    return True, f"{stage} started"
+
+
+@app.post("/actions/{stage}")
+def run_stage(stage: str):
+    if stage == "send":
+        return send_now()
+    return _back("/", start_stage(stage)[1])
 
 
 # ---------------------------------------------------------------- cron
@@ -213,26 +237,37 @@ def lead_detail(request: Request, lead_id: int):
 @app.post("/leads/{lead_id}/tailor")
 def lead_tailor(lead_id: int):
     try:
-        out = pipeline.tailor_lead(settings, db, pipeline.load_master(settings, db), lead_id, pipeline.make_llm(settings))
+        msg = tailor_one(lead_id)
     except Exception as exc:
         return _back(f"/leads/{lead_id}", f"tailoring failed: {exc}")
-    n = len(out["result"].violations)
-    return _back(f"/leads/{lead_id}", f"resume crafted with {out['result'].engine}" + (f", fact guard intervened {n}x" if n else ""))
+    return _back(f"/leads/{lead_id}", msg)
 
 
-@app.post("/leads/{lead_id}/enrich")
-def lead_enrich(lead_id: int):
-    db.execute("UPDATE leads SET status='new' WHERE id=? AND status IN ('new','no_contact','enriched')", (lead_id,))
+def enrich_one(lead_id: int) -> str:
     lead = db.one("SELECT * FROM leads WHERE id=?", (lead_id,))
+    if not lead:
+        raise HTTPException(404)
     from .enrich import enrich_lead
     apollo, hunter = pipeline._providers(settings, None, None)
     out = enrich_lead(lead, settings.targets, apollo, hunter)
     for c in out["contacts"]:
         db.upsert_contact({**c, "lead_id": lead_id})
-    db.execute("UPDATE leads SET company=COALESCE(company, ?), domain=COALESCE(domain, ?), status=? WHERE id=?",
-               (out["company"], out["domain"], "enriched" if out["contacts"] else "no_contact", lead_id))
-    msg = f"{len(out['contacts'])} contact(s)" + (f"; {out['errors'][0]}" if out["errors"] else "")
-    return _back(f"/leads/{lead_id}", msg)
+    status = "enriched" if out["contacts"] else "no_contact"
+    db.execute("UPDATE leads SET company=COALESCE(company, ?), domain=COALESCE(domain, ?), "
+               "status=CASE WHEN status IN ('new','no_contact','enriched') THEN ? ELSE status END WHERE id=?",
+               (out["company"], out["domain"], status, lead_id))
+    return f"{len(out['contacts'])} contact(s)" + (f"; {out['errors'][0]}" if out["errors"] else "")
+
+
+def tailor_one(lead_id: int) -> str:
+    out = pipeline.tailor_lead(settings, db, pipeline.load_master(settings, db), lead_id, pipeline.make_llm(settings))
+    n = len(out["result"].violations)
+    return f"resume crafted with {out['result'].engine}" + (f", fact guard intervened {n}x" if n else "")
+
+
+@app.post("/leads/{lead_id}/enrich")
+def lead_enrich(lead_id: int):
+    return _back(f"/leads/{lead_id}", enrich_one(lead_id))
 
 
 @app.post("/leads/{lead_id}/status")
@@ -414,17 +449,21 @@ def _send_worker() -> None:
         send_state["running"] = False
 
 
-def send_now():
+def start_send() -> tuple[bool, str]:
     blockers = mailer.live_blockers(settings)
     if blockers:
-        return _back("/sending", "Not sending: " + "; ".join(blockers))
+        return False, "Not sending: " + "; ".join(blockers)
     with _send_lock:
         if send_state["running"]:
-            return _back("/sending", "A send batch is already running")
+            return False, "A send batch is already running"
         send_state.update(running=True, log=[], summary=None,
                           started=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"))
     threading.Thread(target=_send_worker, daemon=True).start()
-    return _back("/sending", "Send batch started; messages go out with randomised spacing")
+    return True, "Send batch started; messages go out with randomised spacing"
+
+
+def send_now():
+    return _back("/sending", start_send()[1])
 
 
 @app.post("/sending/check-inbox")
@@ -482,3 +521,8 @@ def unsubscribe(request: Request, token: str):
     return templates.TemplateResponse(request, "unsubscribe.html", {
         "email": email, "token": token, "done": True, "sender": settings.secrets.sender_name,
     })
+
+
+from . import api  # noqa: E402  (api reads this module's globals at call time)
+
+app.include_router(api.router)

@@ -68,7 +68,7 @@ Trigger options:
 - [cron-job.org](https://cron-job.org), free, every 15 minutes:
   `https://<host>/cron/tick?key=<CRON_SECRET>`. Recommended; it also keeps a
   free Render instance awake.
-- The Vercel cron in `vercel/vercel.json` (daily backstop; sends
+- The Vercel cron in `frontend/vercel.json` (daily backstop; sends
   `Authorization: Bearer <CRON_SECRET>`).
 - Locally: `jobhunt autopilot --loop 15`.
 
@@ -136,8 +136,29 @@ Use a separate domain just for outreach (e.g. `alexrivera-careers.com`), never
 filesystem is ephemeral, so `DATABASE_URL` is what keeps your resume, leads,
 sent history and suppression list across deploys. Free Render Postgres expires
 after 30 days; upgrade it or point `DATABASE_URL` at another Postgres (Neon,
-Supabase) before then. `vercel/` is a code-free front door that proxies to
-Render; see `vercel/README.md`.
+Supabase) before then.
+
+## Frontend (Vercel)
+
+`frontend/` is a React + Vite + Tailwind dashboard that talks to the JSON API
+under `/api` (see `jobhunt/api.py`). On Vercel, `frontend/vercel.json` rewrites
+`/api/*`, `/u/*`, `/cron/*` and `/healthz` to the Render service, so the browser
+only ever talks to its own origin and CORS never comes into play. The backend
+also sends CORS headers for `*.vercel.app` and `localhost` (override with
+`CORS_ORIGIN_REGEX`) in case you set `VITE_API_BASE` to call Render directly.
+
+Sign in with `DASHBOARD_PASSWORD`; the app sends it as a Bearer token. The
+server-rendered dashboard on Render keeps working too.
+
+```bash
+cd frontend
+npm install
+BACKEND_URL=http://localhost:8000 npm run dev   # proxies /api to a local `jobhunt serve`
+npx vercel deploy --prod                       # set the Vercel root directory to job-outreach/frontend
+```
+
+If your Render URL differs from `jobhunt-outreach.onrender.com`, change it in
+`frontend/vercel.json`.
 
 ## Tests
 
