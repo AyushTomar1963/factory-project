@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="spread"><div><h1>Emails</h1>
+<p class="sub">Drafts wait here until approved (by you, or by autopilot for verified addresses when auto-send is on). LinkedIn notes are for you to send by hand; this tool never automates LinkedIn.</p></div>
+{% if status == 'draft' and counts.get('draft') %}<form method="post" action="/outreach/approve-all" onsubmit="return confirm('Approve every email draft?')"><button class="btn ok">Approve all email drafts</button></form>{% endif %}</div>
+
+<div class="tabs">
+  {% for s in ['draft', 'approved', 'sent', 'done', 'rejected', 'skipped', 'bounced', 'failed', 'all'] %}
+  <a href="/outreach?status={{ s }}&channel={{ channel }}" class="{{ 'on' if status == s }}">{{ s|capitalize }}{% if s != 'all' %} <span class="muted">{{ counts.get(s, 0) }}</span>{% endif %}</a>
+  {% endfor %}
+  <span style="flex:1"></span>
+  {% for ch in ['all', 'email', 'linkedin'] %}<a href="/outreach?status={{ status }}&channel={{ ch }}" class="{{ 'on' if channel == ch }}">{{ ch }}</a>{% endfor %}
+</div>
+
+{% for o in rows %}
+<div class="card">
+  <div class="spread">
+    <div>
+      <b>{{ o.name }}</b> <span class="muted">{{ o.contact_title or '' }}</span>
+      <div class="small muted">
+        {{ o.company or 'company unknown' }} &middot; <a href="/leads/{{ o.lead_id }}">{{ o.lead_title }}</a>{% if o.season %} &middot; {{ o.season }}{% endif %}
+        &middot; {% if o.channel == 'email' %}{{ o.email }} ({{ o.email_confidence or '?' }}% via {{ o.source }}){% else %}<a href="{{ o.linkedin_url }}" target="_blank" rel="noopener">LinkedIn profile</a>{% endif %}
+      </div>
+    </div>
+    <div class="row"><span class="pill">{{ o.channel }}{{ ' follow-up' if o.kind == 'followup' }}</span><span class="pill {{ o.status }}">{{ o.status }}</span>{% if o.replied_at %}<span class="pill replied">replied</span>{% endif %}</div>
+  </div>
+  {% if o.error %}<p class="small bad-t">{{ o.error }}</p>{% endif %}
+
+  {% if o.status in ['draft', 'approved'] %}
+  <form method="post" action="/outreach/{{ o.id }}" style="margin-top:12px">
+    <input type="hidden" name="back" value="/outreach?status={{ status }}&channel={{ channel }}">
+    {% if o.channel == 'email' %}
+      <input type="text" name="subject" value="{{ o.subject }}" style="margin-bottom:8px">
+      <textarea name="body" {{ 'readonly' if o.status == 'approved' }}>{{ o.body }}</textarea>
+      <p class="small muted" style="margin:4px 0 10px">An unsubscribe footer and RFC 8058 List-Unsubscribe headers are added at send time; the resume crafted for this lead is attached.</p>
+    {% else %}
+      <textarea name="body" id="note-{{ o.id }}" maxlength="300" style="min-height:90px" oninput="document.getElementById('cnt-{{ o.id }}').textContent=this.value.length">{{ o.body }}</textarea>
+      <div class="counter"><span id="cnt-{{ o.id }}">{{ o.body|length }}</span>/300 characters</div>
+    {% endif %}
+    <div class="row" style="margin-top:8px">
+      {% if o.status == 'draft' %}
+        {% if o.channel == 'email' %}
+          <button class="btn ok" name="action" value="approve">Approve for sending</button>
+        {% else %}
+          <button type="button" class="btn primary" onclick="navigator.clipboard.writeText(document.getElementById('note-{{ o.id }}').value); this.textContent='Copied'">Copy note</button>
+          <a class="btn" href="{{ o.linkedin_url }}" target="_blank" rel="noopener">Open profile</a>
+          <button class="btn ok" name="action" value="done">I sent it</button>
+        {% endif %}
+        <button class="btn" name="action" value="save">Save edits</button>
+        <button class="btn bad" name="action" value="reject">Reject</button>
+      {% else %}
+        <button class="btn" name="action" value="unapprove">Move back to draft</button>
+      {% endif %}
+    </div>
+  </form>
+  {% else %}
+    {% if o.subject %}<p style="margin:10px 0 4px"><b>{{ o.subject }}</b></p>{% endif %}
+    <pre class="desc">{{ o.body }}</pre>
+    {% if o.sent_at %}<p class="small muted">sent {{ o.sent_at[:16].replace('T', ' ') }} UTC</p>{% endif %}
+  {% endif %}
+</div>
+{% else %}
+<div class="card"><p class="muted">Nothing here. Run a cycle from the overview.</p></div>
+{% endfor %}
+{% endblock %}

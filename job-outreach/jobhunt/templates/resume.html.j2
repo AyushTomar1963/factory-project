@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ r.basics.name }} - Resume</title>
+<style>
+  @page { size: Letter; margin: 0.6in 0.65in; }
+  * { box-sizing: border-box; }
+  body { font-family: "DejaVu Sans", Helvetica, Arial, sans-serif; font-size: 10pt; line-height: 1.35; color: #111; margin: 0; }
+  h1 { font-size: 20pt; margin: 0 0 2pt; letter-spacing: 0.3pt; }
+  .label { font-size: 11pt; color: #333; margin-bottom: 4pt; }
+  .contact { font-size: 9pt; color: #333; }
+  .contact span { white-space: nowrap; }
+  .contact span + span::before { content: " | "; color: #888; }
+  h2 { font-size: 10.5pt; text-transform: uppercase; letter-spacing: 1pt; border-bottom: 1px solid #999; margin: 12pt 0 5pt; padding-bottom: 2pt; }
+  .entry { margin-bottom: 7pt; page-break-inside: avoid; }
+  .row { display: flex; justify-content: space-between; }
+  .org { font-weight: bold; }
+  .dates { color: #333; white-space: nowrap; }
+  .role { font-style: italic; }
+  ul { margin: 2pt 0 0 14pt; padding: 0; }
+  li { margin-bottom: 1.5pt; }
+  .skills div { margin-bottom: 2pt; }
+  .skills b { font-weight: bold; }
+  p { margin: 0; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>{{ r.basics.name }}</h1>
+    {% if r.basics.label %}<div class="label">{{ r.basics.label }}</div>{% endif %}
+    <div class="contact">
+      {% if r.basics.location %}<span>{{ [r.basics.location.city, r.basics.location.region, r.basics.location.countryCode] | select | join(", ") }}</span>{% endif %}
+      <span>{{ r.basics.email }}</span>
+      {% if r.basics.phone %}<span>{{ r.basics.phone }}</span>{% endif %}
+      {% if r.basics.url %}<span>{{ r.basics.url }}</span>{% endif %}
+      {% for p in r.basics.profiles or [] %}{% if p.url %}<span>{{ p.url }}</span>{% endif %}{% endfor %}
+    </div>
+  </header>
+
+{% macro education() %}
+  {% if r.education %}
+  <h2>Education</h2>
+  {% for e in r.education %}
+  <div class="entry">
+    <div class="row"><span class="org">{{ e.institution }}</span><span class="dates">{% if e.startDate %}{{ e.startDate | ym }} - {% endif %}{{ (e.endDate | ym) if e.endDate else "Expected" }}</span></div>
+    <div class="row"><span class="role">{{ [e.studyType, e.area] | select | join(", ") }}</span>{% if e.score %}<span>{{ e.score }}</span>{% endif %}</div>
+    {% if e.courses %}<div>Coursework: {{ e.courses | join(", ") }}</div>{% endif %}
+  </div>
+  {% endfor %}
+  {% endif %}
+{% endmacro %}
+{% macro experience() %}
+  {% if r.work %}
+  <h2>Experience</h2>
+  {% for w in r.work %}
+  <div class="entry">
+    <div class="row"><span class="org">{{ w.name }}</span><span class="dates">{% if w.startDate %}{{ w.startDate | ym }} - {{ (w.endDate | ym) if w.endDate else "Present" }}{% else %}{{ w.endDate | ym }}{% endif %}</span></div>
+    <div class="row"><span class="role">{{ w.position }}</span>{% if w.location %}<span>{{ w.location }}</span>{% endif %}</div>
+    {% if w.highlights %}<ul>{% for h in w.highlights %}<li>{{ h }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+  {% endfor %}
+  {% endif %}
+{% endmacro %}
+{% macro projects() %}
+  {% if r.projects %}
+  <h2>Projects</h2>
+  {% for p in r.projects %}
+  <div class="entry">
+    <div class="row"><span class="org">{{ p.name }}</span>{% if p.url %}<span>{{ p.url }}</span>{% endif %}</div>
+    {% if p.description %}<p>{{ p.description }}</p>{% endif %}
+    {% if p.highlights %}<ul>{% for h in p.highlights %}<li>{{ h }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+  {% endfor %}
+  {% endif %}
+{% endmacro %}
+
+  {% if r.basics.summary %}
+  <h2>Summary</h2>
+  <p>{{ r.basics.summary }}</p>
+  {% endif %}
+
+  {% if student %}{{ education() }}{% endif %}
+
+  {% if r.skills %}
+  <h2>Skills</h2>
+  <div class="skills">
+    {% for s in r.skills %}<div><b>{{ s.name }}:</b> {{ s.keywords | join(", ") }}</div>{% endfor %}
+  </div>
+  {% endif %}
+
+  {% if student %}{{ projects() }}{{ experience() }}{% else %}{{ experience() }}{{ projects() }}{{ education() }}{% endif %}
+
+  {% if r.certificates %}
+  <h2>Certifications</h2>
+  <ul>{% for c in r.certificates %}<li>{{ c.name }}{% if c.issuer %}, {{ c.issuer }}{% endif %}{% if c.date %} ({{ c.date | ym }}){% endif %}</li>{% endfor %}</ul>
+  {% endif %}
+
+  {% if r.awards %}
+  <h2>Awards</h2>
+  <ul>{% for a in r.awards %}<li>{{ a.title }}{% if a.awarder %}, {{ a.awarder }}{% endif %}{% if a.date %} ({{ a.date | ym }}){% endif %}</li>{% endfor %}</ul>
+  {% endif %}
+</body>
+</html>

@@ -1,0 +1,28 @@
+# Configuration used by the hosted instance. Targeting can be edited live
+# from the dashboard; these are only the starting defaults.
+
+candidate:
+  resume: examples/student_resume.json
+
+targeting:
+  seasons: [Summer 2027, Winter 2026]
+  roles: [Software Engineering Intern, Backend Intern, Data Science Intern]
+  locations: []
+  companies: []
+  sources: [hiring_posts, linkedin_jobs, companies]
+  max_results_per_query: 20
+  auto_send: false
+  cycle_every_hours: 24
+  tailor_per_cycle: 15
+  per_tick: 3
+  followups_enabled: true
+  followup_after_days: 5
+
+targets:
+  max_contacts_per_company: 2
+  min_email_confidence: 80
+
+outreach:
+  daily_cap: 25
+  require_authentication: true
+  attach_resume: true

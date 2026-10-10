@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block body %}
+<p class="small"><a href="/leads">&larr; Leads</a></p>
+<div class="spread">
+  <div><h1>{{ lead.title }}</h1>
+    <p class="sub">{{ lead.company or 'Company not identified yet' }}{% if lead.season %} &middot; {{ lead.season }}{% endif %}
+      {% if lead.location %} &middot; {{ lead.location }}{% endif %} &middot; <span class="pill {{ lead.status }}">{{ lead.status | replace('_', ' ') }}</span>
+      &middot; {{ sources.get(lead.source, lead.source) }}
+      {% if lead.url %} &middot; <a href="{{ lead.url }}" target="_blank" rel="noopener">open source</a>{% endif %}</p></div>
+  <div class="row">
+    <form method="post" action="/leads/{{ lead.id }}/enrich"><button class="btn">Find people again</button></form>
+    <form method="post" action="/leads/{{ lead.id }}/tailor"><button class="btn primary">{{ 'Re-craft resume' if doc else 'Craft resume now' }}</button></form>
+    {% if lead.status != 'skipped' %}
+    <form method="post" action="/leads/{{ lead.id }}/status"><input type="hidden" name="status" value="skipped"><button class="btn bad">Skip</button></form>
+    {% else %}
+    <form method="post" action="/leads/{{ lead.id }}/status"><input type="hidden" name="status" value="new"><button class="btn">Restore</button></form>
+    {% endif %}
+  </div>
+</div>
+
+{% if lead.poster_url %}
+<div class="card small">Posted by <b>{{ lead.poster_name or 'someone' }}</b> &middot; <a href="{{ lead.poster_url }}" target="_blank" rel="noopener">LinkedIn profile</a>{% if lead.posted_at %} &middot; {{ lead.posted_at[:10] }}{% endif %}</div>
+{% endif %}
+
+<div class="grid g2">
+  <div class="card">
+    <h2>Fit{% if lead.match_score is not none %}: {{ (lead.match_score * 100)|round|int }}%{% endif %}</h2>
+    {% if payload %}
+      <div class="small muted">You have</div>
+      {% for k in payload.matched %}<span class="chip">{{ k }}</span>{% else %}<span class="muted small">no overlap detected</span>{% endfor %}
+      <div class="small muted" style="margin-top:8px">They mention, not on your resume (never added)</div>
+      {% for k in payload.missing %}<span class="chip miss">{{ k }}</span>{% else %}<span class="muted small">none</span>{% endfor %}
+    {% else %}
+      {% for k in keywords %}<span class="chip gray">{{ k }}</span>{% else %}<span class="muted">No specific skills mentioned.</span>{% endfor %}
+    {% endif %}
+  </div>
+  <div class="card">
+    <h2>Tailored resume</h2>
+    {% if doc %}
+      <div class="row">
+        {% if doc.has_pdf %}<a class="btn" href="/files/{{ lead.id }}/resume.pdf" target="_blank">Resume PDF</a>{% endif %}
+        <a class="btn" href="/files/{{ lead.id }}/resume.html" target="_blank">Resume HTML</a>
+        {% if doc.has_cover %}<a class="btn" href="/files/{{ lead.id }}/cover.pdf" target="_blank">Cover letter PDF</a>{% endif %}
+      </div>
+      <p class="small muted">Engine: {{ doc.engine }} &middot; {{ doc.created_at | when }}</p>
+      {% if violations %}
+      <div class="warnbox small"><b>Fact guard rejected {{ violations|length }} proposal(s)</b> and kept your original wording:
+        <ul style="margin:6px 0 0 18px; padding:0">{% for v in violations %}<li>{{ v }}</li>{% endfor %}</ul></div>
+      {% else %}<p class="small ok-t">Fact guard: everything traces back to your resume.</p>{% endif %}
+    {% else %}<p class="muted">Not crafted yet.</p>{% endif %}
+  </div>
+</div>
+
+{% if doc %}
+<div class="grid g2">
+  <div class="card"><h2>Email pitch</h2><pre class="desc">{{ doc.pitch }}</pre></div>
+  <div class="card"><h2>Cover letter</h2><pre class="desc">{{ doc.cover_letter }}</pre></div>
+</div>
+{% endif %}
+
+<div class="grid g2">
+  <div class="card">
+    <h2>People to contact</h2>
+    {% if contacts %}
+    <table>{% for c in contacts %}
+      <tr><td><b>{{ c.name }}</b><div class="small muted">{{ c.title or '' }}</div></td>
+          <td class="small">{% if c.email %}{{ c.email }} <span class="muted">({{ c.email_confidence or '?' }}%)</span>{% elif c.linkedin_url %}<a href="{{ c.linkedin_url }}" target="_blank" rel="noopener">LinkedIn only</a>{% else %}<span class="muted">no channel</span>{% endif %}</td>
+          <td class="small muted">{{ c.source }}</td></tr>
+    {% endfor %}</table>
+    {% else %}<p class="muted">None yet. Run "Find people + emails".</p>{% endif %}
+  </div>
+  <div class="card">
+    <h2>Emails</h2>
+    {% if outreach %}
+    <table>{% for o in outreach %}
+      <tr><td>{{ o.name }}<div class="small muted">{{ o.channel }} &middot; {{ o.kind }}</div></td><td><span class="pill {{ o.status }}">{{ o.status }}</span>{% if o.replied_at %} <span class="pill replied">replied</span>{% endif %}</td><td><a class="small" href="/outreach?status={{ o.status }}">open</a></td></tr>
+    {% endfor %}</table>
+    {% else %}<p class="muted">No drafts yet.</p>{% endif %}
+  </div>
+</div>
+
+{% if lead.description %}<div class="card"><h2>Details</h2><pre class="desc">{{ lead.description }}</pre></div>{% endif %}
+{% endblock %}

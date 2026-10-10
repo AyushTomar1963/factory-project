@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ r.basics.name }} - Cover Letter</title>
+<style>
+  @page { size: Letter; margin: 1in; }
+  body { font-family: "DejaVu Sans", Helvetica, Arial, sans-serif; font-size: 10.5pt; line-height: 1.5; color: #111; }
+  .head { margin-bottom: 18pt; }
+  .head b { font-size: 14pt; }
+  p { margin: 0 0 10pt; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <b>{{ r.basics.name }}</b><br>
+    {{ r.basics.email }}{% if r.basics.phone %} | {{ r.basics.phone }}{% endif %}
+  </div>
+  <p>{{ date }}</p>
+  <p>Hiring Team, {{ job.company }}<br>Re: {{ job.title }}</p>
+  <p>Dear Hiring Team,</p>
+  {% for para in letter.split("\n\n") %}<p>{{ para }}</p>{% endfor %}
+  <p>Sincerely,<br>{{ r.basics.name }}</p>
+</body>
+</html>

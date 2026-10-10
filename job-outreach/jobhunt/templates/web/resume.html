@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Resume crafter</h1>
+<p class="sub">Your master resume. Every lead gets its own version built from this: bullets reordered and reworded toward
+  what they're hiring for, never invented. {% if not saved %}<b>You're currently using the bundled example resume; import yours below.</b>{% endif %}</p>
+
+<div class="grid g2">
+  <div class="card">
+    <h2>1. Import your resume</h2>
+    <form method="post" action="/resume/import" enctype="multipart/form-data">
+      <div class="field"><b>Upload a PDF (or .txt)</b><input type="file" name="file" accept=".pdf,.txt,.md"></div>
+      <div class="field"><b>or paste the text</b><textarea name="text" style="min-height:140px" placeholder="Paste your resume here"></textarea></div>
+      <button class="btn primary" {{ 'disabled title="set LLM_API_KEY"'|safe if not llm }}>Import</button>
+      {% if not llm %}<p class="small warn-t">Importing needs LLM_API_KEY. You can still paste JSON Resume into the editor.</p>{% endif %}
+    </form>
+    {% if warnings %}
+    <div class="warnbox small" style="margin-top:12px"><b>Check these:</b> the import produced items that aren't in your original text, so they may be wrong. Fix or delete them in the editor.
+      <ul style="margin:6px 0 0 18px;padding:0">{% for w in warnings %}<li>{{ w }}</li>{% endfor %}</ul></div>
+    {% endif %}
+  </div>
+  <div class="card">
+    <h2>2. Preview</h2>
+    {% if master %}
+    <p><b>{{ master.basics.name }}</b>{% if master.basics.label %} &middot; {{ master.basics.label }}{% endif %}<br>
+      <span class="small muted">{{ master.basics.email }}</span></p>
+    <p class="small">
+      {{ (master.education or [])|length }} education &middot; {{ (master.work or [])|length }} experience &middot;
+      {{ (master.projects or [])|length }} projects &middot; {{ (master.skills or [])|map(attribute='keywords')|map('length')|sum }} skills
+    </p>
+    <div class="row">
+      <a class="btn" href="/resume/preview" target="_blank">Open HTML</a>
+      <a class="btn primary" href="/resume/preview?fmt=pdf" target="_blank">Download general internship resume (PDF)</a>
+    </div>
+    {% if saved %}
+    <form method="post" action="/resume/reset" style="margin-top:12px" onsubmit="return confirm('Discard your saved resume?')"><button class="btn sm bad">Revert to example</button></form>
+    {% endif %}
+    {% else %}<p class="muted">No resume loaded.</p>{% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h2>3. Edit (JSON Resume)</h2>
+  <p class="small muted">Sections: basics, education, work (internships go here), projects, skills, awards, certificates.
+    Only <code>basics.name</code> and <code>basics.email</code> are required. Tailoring can reword your summary and work bullets
+    and reorder skills; everything else is kept exactly as written here.</p>
+  <form method="post" action="/resume/save">
+    <textarea name="resume_json" style="min-height:520px" spellcheck="false">{{ master_json }}</textarea>
+    <div class="row" style="margin-top:8px"><button class="btn ok">Save resume</button></div>
+  </form>
+</div>
+{% endblock %}
