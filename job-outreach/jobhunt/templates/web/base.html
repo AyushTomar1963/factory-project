@@ -48,8 +48,13 @@
   .pill { font-size: 12px; padding: 2px 8px; border-radius: 6px; background: #f1f5f9; color: #334155; white-space: nowrap; }
   .pill.shortlisted, .pill.approved { background: #e0e7ff; color: #3730a3; }
   .pill.tailored, .pill.draft { background: #fef3c7; color: #92400e; }
+  .pill.enriched, .pill.queued { background: #e0f2fe; color: #075985; }
   .pill.contacted, .pill.sent, .pill.done { background: #d1fae5; color: #065f46; }
-  .pill.filtered, .pill.skipped, .pill.rejected { background: #f1f5f9; color: #64748b; }
+  .pill.replied { background: #059669; color: #fff; }
+  .pill.filtered, .pill.skipped, .pill.rejected, .pill.no_contact { background: #f1f5f9; color: #64748b; }
+  label.chk { display: flex; gap: 8px; align-items: flex-start; margin: 6px 0; }
+  input[type=number] { width: 90px; font: inherit; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+  .field { margin-bottom: 14px; } .field > b { display: block; margin-bottom: 4px; }
   .pill.bounced, .pill.failed { background: #fee2e2; color: #991b1b; }
   .score { font-variant-numeric: tabular-nums; font-weight: 600; }
   .bar { height: 6px; background: #e2e8f0; border-radius: 3px; width: 70px; overflow: hidden; margin-top: 4px; }
@@ -75,10 +80,12 @@
     <div class="logo">job<span>hunt</span></div>
     {% set p = request.url.path %}
     <a href="/" class="{{ 'on' if p == '/' }}">Overview</a>
-    <a href="/jobs" class="{{ 'on' if p.startswith('/jobs') }}">Jobs</a>
-    <a href="/outreach" class="{{ 'on' if p.startswith('/outreach') }}">Outreach review</a>
-    <a href="/sending" class="{{ 'on' if p.startswith('/sending') }}">Sending &amp; deliverability</a>
-    <div class="foot">Direct-to-ATS discovery.<br>Human-approved outreach.</div>
+    <a href="/resume" class="{{ 'on' if p.startswith('/resume') }}">Resume crafter</a>
+    <a href="/settings" class="{{ 'on' if p.startswith('/settings') }}">Targeting &amp; autopilot</a>
+    <a href="/leads" class="{{ 'on' if p.startswith('/leads') }}">Internship leads</a>
+    <a href="/outreach" class="{{ 'on' if p.startswith('/outreach') }}">Emails</a>
+    <a href="/sending" class="{{ 'on' if p.startswith('/sending') }}">Sending &amp; replies</a>
+    <div class="foot">Internships, winter &amp; summer.<br>Straight to people's inboxes, no portals.</div>
   </nav>
   <main>
     {% if flash %}<div class="flash">{{ flash }}</div>{% endif %}

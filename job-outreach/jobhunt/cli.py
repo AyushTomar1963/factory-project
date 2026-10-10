@@ -7,7 +7,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from . import deliverability, mailer, pipeline
+from . import autopilot, crafter, deliverability, mailer, pipeline
 from .config import load_settings
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -28,44 +28,92 @@ def cmd_init(args, settings) -> int:
         else:
             shutil.copy(ROOT / src, target)
             print(f"created {dst}")
-    print("Next: edit config.yaml (companies, resume path) and .env (API keys, SMTP).")
+    print("Next: fill in .env (APIFY_TOKEN, APOLLO/HUNTER, LLM, SMTP), then `jobhunt import-resume my.pdf`.")
     return 0
 
 
+def _open(settings):
+    db = pipeline.open_db(settings)
+    return db, pipeline.load_master(settings, db)
+
+
 def cmd_discover(args, settings) -> int:
-    db, master = pipeline.open_db(settings), pipeline.load_master(settings)
+    db, master = _open(settings)
     _print_stage("discover", pipeline.run_discover(settings, db, master))
     return 0
 
 
 def cmd_enrich(args, settings) -> int:
-    res = pipeline.run_enrich(settings, pipeline.open_db(settings), refresh=args.refresh)
+    res = pipeline.run_enrich(settings, pipeline.open_db(settings), limit=args.limit)
     _print_stage("enrich", res)
     return 1 if res.errors and not res.counts else 0
 
 
 def cmd_tailor(args, settings) -> int:
-    db, master = pipeline.open_db(settings), pipeline.load_master(settings)
+    db, master = _open(settings)
     llm = None if args.offline else pipeline.make_llm(settings)
     if llm is None:
         print("[tailor] using offline deterministic engine (set LLM_API_KEY for LLM rewriting)")
-    _print_stage("tailor", pipeline.run_tailor(settings, db, master, llm, job_ids=args.job, limit=args.limit))
+    _print_stage("tailor", pipeline.run_tailor(settings, db, master, llm, lead_ids=args.lead, limit=args.limit))
     return 0
 
 
 def cmd_queue(args, settings) -> int:
-    db, master = pipeline.open_db(settings), pipeline.load_master(settings)
+    db, master = _open(settings)
     _print_stage("queue", pipeline.run_queue(settings, db, master))
     return 0
 
 
+def cmd_followups(args, settings) -> int:
+    db, master = _open(settings)
+    _print_stage("followups", pipeline.run_followups(settings, db, master))
+    return 0
+
+
+def cmd_autopilot(args, settings) -> int:
+    import time
+
+    db = pipeline.open_db(settings)
+    while True:
+        report = autopilot.tick(settings, db, force_cycle=args.cycle)
+        for line in report.get("lines", [report.get("skipped", "")]):
+            print(f"[autopilot] {line}")
+        if not args.loop:
+            return 0
+        args.cycle = False
+        time.sleep(args.loop * 60)
+
+
+def cmd_import_resume(args, settings) -> int:
+    db = pipeline.open_db(settings)
+    path = Path(args.file)
+    try:
+        if path.suffix.lower() == ".json":
+            data, warnings = crafter.parse_json(path.read_text()), []
+        else:
+            text = crafter.pdf_text(path.read_bytes()) if path.suffix.lower() == ".pdf" else path.read_text()
+            data, warnings = crafter.import_text(text, pipeline.make_llm(settings))
+    except crafter.CraftError as exc:
+        print(f"import failed: {exc}", file=sys.stderr)
+        return 1
+    db.kv_set("master_resume", data)
+    db.kv_set("master_resume_warnings", warnings)
+    print(f"saved master resume for {data['basics']['name']}")
+    for w in warnings:
+        print(f"  check: {w} (not found in the source text)")
+    return 0
+
+
+def cmd_check_replies(args, settings) -> int:
+    got = mailer.check_replies(pipeline.open_db(settings), settings)
+    print(f"{got['replies']} new repl(ies), {got['bounces']} bounce(s)")
+    return 0
+
+
 def cmd_run(args, settings) -> int:
-    db, master = pipeline.open_db(settings), pipeline.load_master(settings)
+    db, master = _open(settings)
     _print_stage("discover", pipeline.run_discover(settings, db, master))
-    if settings.secrets.apollo_api_key or settings.secrets.hunter_api_key:
-        _print_stage("enrich", pipeline.run_enrich(settings, db))
-    else:
-        print("[enrich] skipped: no APOLLO_API_KEY / HUNTER_API_KEY")
+    _print_stage("enrich", pipeline.run_enrich(settings, db))
     _print_stage("tailor", pipeline.run_tailor(settings, db, master, pipeline.make_llm(settings), limit=args.limit))
     _print_stage("queue", pipeline.run_queue(settings, db, master))
     print("Review drafts with `jobhunt review` or the web dashboard, then `jobhunt send`.")
@@ -75,8 +123,8 @@ def cmd_run(args, settings) -> int:
 def cmd_review(args, settings) -> int:
     db = pipeline.open_db(settings)
     rows = db.all(
-        "SELECT o.id, o.channel, o.subject, o.body, c.name, c.title, c.email, c.linkedin_url, j.title AS job, "
-        "j.company FROM outreach o JOIN contacts c ON c.id=o.contact_id JOIN jobs j ON j.id=o.job_id "
+        "SELECT o.id, o.channel, o.subject, o.body, c.name, c.title, c.email, c.linkedin_url, l.title AS job, "
+        "l.company FROM outreach o JOIN contacts c ON c.id=o.contact_id JOIN leads l ON l.id=o.lead_id "
         "WHERE o.status='draft' ORDER BY o.id"
     )
     if not rows:
@@ -119,7 +167,6 @@ def cmd_check_domain(args, settings) -> int:
 
 def cmd_send(args, settings) -> int:
     db = pipeline.open_db(settings)
-    s = settings.secrets
     if args.live:
         blockers = mailer.live_blockers(settings)
         if blockers:
@@ -129,7 +176,7 @@ def cmd_send(args, settings) -> int:
             return 1
         transport = mailer.SMTPTransport(settings)
     else:
-        outbox = settings.path(s.output_dir) / "outbox"
+        outbox = settings.path("data/outbox")
         transport = mailer.DryRunTransport(outbox)
         print(f"[send] dry run: writing .eml files to {outbox} (use --live to really send)")
     allow = mailer.allowance(db, settings)
@@ -170,23 +217,24 @@ def cmd_serve(args, settings) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="jobhunt", description="Direct-to-ATS job discovery, tailoring and outreach")
+    p = argparse.ArgumentParser(prog="jobhunt", description="Internship hunting: find people hiring interns, craft a resume per lead, email them")
     p.add_argument("-c", "--config", help="path to config.yaml (default: ./config.yaml or $JOBHUNT_CONFIG)")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("init", help="create config.yaml and .env from the examples").set_defaults(fn=cmd_init)
-    sub.add_parser("discover", help="pull jobs from Greenhouse/Lever/Ashby/Workday").set_defaults(fn=cmd_discover)
-    e = sub.add_parser("enrich", help="find hiring managers via Apollo/Hunter")
-    e.add_argument("--refresh", action="store_true", help="re-query companies that already have contacts")
+    sub.add_parser("discover", help="find internship leads (LinkedIn hiring posts, listings, your company list)").set_defaults(fn=cmd_discover)
+    e = sub.add_parser("enrich", help="find people + emails for new leads via Apollo/Hunter")
+    e.add_argument("--limit", type=int)
     e.set_defaults(fn=cmd_enrich)
-    t = sub.add_parser("tailor", help="build tailored resume, cover letter and pitch")
-    t.add_argument("--job", type=int, action="append", help="job id (repeatable); default: all shortlisted")
+    t = sub.add_parser("tailor", help="craft a tailored resume, cover letter and pitch per lead")
+    t.add_argument("--lead", type=int, action="append", help="lead id (repeatable); default: all enriched")
     t.add_argument("--limit", type=int)
     t.add_argument("--offline", action="store_true", help="skip the LLM even if configured")
     t.set_defaults(fn=cmd_tailor)
-    sub.add_parser("queue", help="create outreach drafts for tailored jobs").set_defaults(fn=cmd_queue)
+    sub.add_parser("queue", help="create email drafts for tailored leads").set_defaults(fn=cmd_queue)
+    sub.add_parser("followups", help="queue one follow-up for unanswered emails").set_defaults(fn=cmd_followups)
     r = sub.add_parser("run", help="discover + enrich + tailor + queue")
-    r.add_argument("--limit", type=int, help="max jobs to tailor this run")
+    r.add_argument("--limit", type=int, help="max leads to tailor this run")
     r.set_defaults(fn=cmd_run)
     sub.add_parser("review", help="print drafts awaiting approval").set_defaults(fn=cmd_review)
     a = sub.add_parser("approve", help="approve drafts for sending")
@@ -210,6 +258,14 @@ def build_parser() -> argparse.ArgumentParser:
     su.add_argument("emails", nargs="+")
     su.add_argument("--reason", default="manual")
     su.set_defaults(fn=cmd_suppress)
+    ap = sub.add_parser("autopilot", help="one auto-emailer tick (inbox, cycle if due, follow-ups, send)")
+    ap.add_argument("--cycle", action="store_true", help="force a full discover/enrich/tailor/queue cycle")
+    ap.add_argument("--loop", type=int, metavar="MINUTES", help="keep ticking every N minutes")
+    ap.set_defaults(fn=cmd_autopilot)
+    ir = sub.add_parser("import-resume", help="import your resume (PDF, text or JSON Resume) as the master")
+    ir.add_argument("file")
+    ir.set_defaults(fn=cmd_import_resume)
+    sub.add_parser("check-replies", help="scan the IMAP inbox for replies and bounces").set_defaults(fn=cmd_check_replies)
     sub.add_parser("status", help="pipeline counts and sending allowance").set_defaults(fn=cmd_status)
     sv = sub.add_parser("serve", help="run the web dashboard + unsubscribe endpoint")
     sv.add_argument("--host", default="0.0.0.0")

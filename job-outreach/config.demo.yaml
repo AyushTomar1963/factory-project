@@ -1,22 +1,24 @@
-# Demo configuration used by the hosted Render instance.
-# Real public ATS boards so "Discover jobs" returns live postings.
+# Configuration used by the hosted instance. Targeting can be edited live
+# from the dashboard; these are only the starting defaults.
 
 candidate:
-  resume: examples/master_resume.json
+  resume: examples/student_resume.json
 
-search:
-  title_include: [engineer, developer, sre, platform]
-  title_exclude: [intern, principal, director, staff, manager]
+targeting:
+  seasons: [Summer 2027, Winter 2026]
+  roles: [Software Engineering Intern, Backend Intern, Data Science Intern]
   locations: []
-  min_match_score: 0.3
-
-companies:
-  - {name: Airbnb, domain: airbnb.com, ats: greenhouse, board: airbnb}
-  - {name: Palantir, domain: palantir.com, ats: lever, board: palantir}
-  - {name: Ramp, domain: ramp.com, ats: ashby, board: ramp}
+  companies: []
+  sources: [hiring_posts, linkedin_jobs, companies]
+  max_results_per_query: 20
+  auto_send: false
+  cycle_every_hours: 24
+  tailor_per_cycle: 15
+  per_tick: 3
+  followups_enabled: true
+  followup_after_days: 5
 
 targets:
-  titles: [Engineering Manager, Head of Engineering, VP of Engineering, Director of Engineering, Head of Talent, Technical Recruiter]
   max_contacts_per_company: 2
   min_email_confidence: 80
 

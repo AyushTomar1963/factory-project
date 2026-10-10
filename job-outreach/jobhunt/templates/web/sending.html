@@ -1,12 +1,22 @@
 {% extends "base.html" %}
 {% block body %}
-<h1>Sending &amp; deliverability</h1>
+<h1>Sending &amp; replies</h1>
 <div class="spread">
   <p class="sub">Sender: <b>{{ sender or 'not configured' }}</b> &middot; {{ approved }} approved email(s) waiting.</p>
   <form method="post" action="/actions/send" onsubmit="return confirm('Send approved emails now? All safety checks run first.')">
     <button class="btn primary" {{ 'disabled' if send_state.running or not approved }}>{{ 'Sending...' if send_state.running else 'Send approved now' }}</button>
   </form>
 </div>
+<div class="card">
+  <div class="spread"><h2>Replies</h2>
+    <form method="post" action="/sending/check-inbox"><button class="btn sm" {{ 'disabled title="set IMAP_HOST"'|safe if not imap }}>Check inbox now</button></form></div>
+  {% if replies %}<table>{% for r in replies %}
+    <tr><td><b>{{ r.name }}</b><div class="small muted">{{ r.email }} &middot; {{ r.company or '' }}</div></td>
+        <td class="small">{{ r.subject }}</td><td class="small muted">{{ r.replied_at | when }}</td></tr>
+  {% endfor %}</table>
+  {% else %}<p class="muted">{{ 'No replies yet. The inbox is checked on every tick.' if imap else 'Set IMAP_HOST so replies are detected and follow-ups stop automatically.' }}</p>{% endif %}
+</div>
+
 {% if send_state.started %}
 <div class="card">
   <h2>Batch started {{ send_state.started }}{% if send_state.running %} <span class="pill draft">running</span>{% endif %}</h2>
@@ -37,7 +47,7 @@
       <tr><td>Warm-up</td><td>day {{ allow.warmup_day }}: {% for s in outreach_cfg.warmup %}{{ s.cap }}/day from day {{ s.from_day }}{{ ', ' if not loop.last }}{% endfor %}, then {{ outreach_cfg.daily_cap }}/day</td></tr>
       <tr><td>Spacing</td><td>{{ outreach_cfg.min_delay_seconds }}-{{ outreach_cfg.max_delay_seconds }}s random delay between messages</td></tr>
       <tr><td>Bounces</td><td>{{ (allow.bounce_rate * 100)|round(1) }}% of last 100 (auto-pause above {{ (outreach_cfg.max_bounce_rate * 100)|round|int }}%)</td></tr>
-      <tr><td>Re-contact</td><td>never within {{ outreach_cfg.recontact_after_days }} days</td></tr>
+      <tr><td>Re-contact</td><td>never within {{ outreach_cfg.recontact_after_days }} days (except one threaded follow-up)</td></tr>
     </table>
     {% if allow.paused_reason %}<div class="warnbox" style="margin-top:10px">Paused: {{ allow.paused_reason }}</div>{% endif %}
     {% else %}<p class="muted">Configure SENDER_EMAIL first.</p>{% endif %}

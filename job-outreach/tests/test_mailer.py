@@ -1,3 +1,4 @@
+import json
 import smtplib
 from datetime import datetime, timedelta, timezone
 
@@ -19,15 +20,17 @@ class FakeTransport:
         pass
 
 
-def _seed(db, emails):
-    db.execute("INSERT INTO jobs (id, company, domain, ats, external_id, title, discovered_at, status) "
-               "VALUES (1,'Acme','acme.com','greenhouse','1','Engineer',?,'tailored')", (now_iso(),))
+def _seed(db, emails, status="approved"):
+    db.execute("INSERT INTO leads (id, source, external_id, company, domain, title, discovered_at, status) "
+               "VALUES (1,'companies','acme','Acme','acme.com','Internship',?,'queued')", (now_iso(),))
+    db.execute("INSERT INTO documents (lead_id, tailored_json, resume_pdf, created_at) VALUES (1,?,?,?)",
+               (json.dumps({"resume": {"basics": {"name": "Jane Doe"}}}), b"%PDF-1.4 test", now_iso()))
     ids = []
     for i, e in enumerate(emails):
         cid = db.upsert_contact({"company": "Acme", "domain": "acme.com", "name": f"P{i}", "email": e, "source": "test"})
-        cur = db.execute("INSERT INTO outreach (job_id, contact_id, channel, subject, body, status, created_at, approved_at) "
-                         "VALUES (1,?,'email','Hi','Body','approved',?,?)", (cid, now_iso(), now_iso()))
-        ids.append(cur.lastrowid)
+        ids.append(db.insert(
+            "INSERT INTO outreach (lead_id, contact_id, channel, subject, body, status, created_at, approved_at) "
+            "VALUES (1,?,'email','Hi','Body',?,?,?) RETURNING id", (cid, status, now_iso(), now_iso())))
     return ids
 
 
@@ -39,10 +42,8 @@ def test_token_roundtrip_and_tamper():
     assert mailer.verify_token("garbage", "s") is None
 
 
-def test_message_has_one_click_unsubscribe(settings, tmp_path):
-    pdf = tmp_path / "r.pdf"
-    pdf.write_bytes(b"%PDF-1.4")
-    msg = mailer.build_message(settings, "ann@acme.com", "Ann", "Subj", "Hello", [pdf])
+def test_message_has_one_click_unsubscribe(settings):
+    msg = mailer.build_message(settings, "ann@acme.com", "Ann", "Subj", "Hello", [("r.pdf", b"%PDF-1.4")])
     assert msg["List-Unsubscribe-Post"] == "List-Unsubscribe=One-Click"
     assert "https://jobs.example.com/u/" in msg["List-Unsubscribe"] and "mailto:" in msg["List-Unsubscribe"]
     assert msg["Message-ID"].endswith("@janedoe-careers.com>")
@@ -101,3 +102,61 @@ def test_bounce_rate_pauses(settings, db):
                    (d, f"{i}@x.com", "bounced" if i < 5 else "sent", old))
     a = mailer.allowance(db, settings)
     assert a.paused_reason and a.remaining == 0
+
+
+def test_send_attaches_lead_resume_and_marks_contacted(settings, db):
+    _seed(db, ["a@acme.com"])
+    t = FakeTransport()
+    assert mailer.send_approved(db, settings, t, log=lambda *_: None).sent == 1
+    [att] = list(t.sent[0].iter_attachments())
+    assert att.get_filename() == "jane-doe-resume.pdf" and att.get_content() == b"%PDF-1.4 test"
+    assert db.scalar("SELECT status FROM leads WHERE id=1") == "contacted"
+
+
+def _followup(db, parent_id, status="approved"):
+    parent = db.one("SELECT * FROM outreach WHERE id=?", (parent_id,))
+    return db.insert(
+        "INSERT INTO outreach (lead_id, contact_id, channel, kind, parent_id, subject, body, status, created_at, approved_at) "
+        "VALUES (1,?,'email','followup',?,'Re: Hi','Nudge',?,?,?) RETURNING id",
+        (parent["contact_id"], parent_id, status, now_iso(), now_iso()))
+
+
+def test_followup_is_threaded_and_bypasses_recontact_window(settings, db):
+    [oid] = _seed(db, ["a@acme.com"])
+    mailer.send_approved(db, settings, FakeTransport(), log=lambda *_: None)
+    msgid = db.scalar("SELECT message_id FROM outreach WHERE id=?", (oid,))
+    fid = _followup(db, oid)
+    t = FakeTransport()
+    s = mailer.send_approved(db, settings, t, log=lambda *_: None)
+    assert s.sent == 1
+    assert t.sent[0]["In-Reply-To"] == msgid and t.sent[0]["References"] == msgid
+    assert db.scalar("SELECT status FROM outreach WHERE id=?", (fid,)) == "sent"
+
+
+def test_followup_skipped_after_reply(settings, db):
+    [oid] = _seed(db, ["a@acme.com"])
+    mailer.send_approved(db, settings, FakeTransport(), log=lambda *_: None)
+    db.execute("UPDATE outreach SET replied_at=? WHERE id=?", (now_iso(), oid))
+    fid = _followup(db, oid)
+    s = mailer.send_approved(db, settings, FakeTransport(), log=lambda *_: None)
+    assert s.sent == 0 and db.scalar("SELECT status FROM outreach WHERE id=?", (fid,)) == "skipped"
+
+
+def test_inbox_replies_cancel_followups_and_bounces_suppress(settings, db):
+    a, b = _seed(db, ["a@acme.com", "b@acme.com"])
+    mailer.send_approved(db, settings, FakeTransport(), log=lambda *_: None, sleep=lambda *_: None)
+    fa, fb = _followup(db, a, "draft"), _followup(db, b, "approved")
+    msgid_a = db.scalar("SELECT message_id FROM outreach WHERE id=?", (a,))
+    got = mailer.process_inbox(db, [
+        {"from": "P0 <A@acme.com>", "in_reply_to": msgid_a, "references": "", "body": "Sure, let's talk"},
+        {"from": "MAILER-DAEMON@mx.acme.com", "body": "Delivery to b@acme.com failed: 550 user unknown"},
+        {"from": "news@other.com", "body": "newsletter"},
+    ])
+    assert got == {"replies": 1, "bounces": 1}
+    assert db.scalar("SELECT replied_at FROM outreach WHERE id=?", (a,))
+    assert db.scalar("SELECT status FROM outreach WHERE id=?", (fa,)) == "rejected"
+    assert db.scalar("SELECT status FROM outreach WHERE id=?", (b,)) == "bounced"
+    assert db.scalar("SELECT status FROM outreach WHERE id=?", (fb,)) == "rejected"
+    assert db.is_suppressed("b@acme.com") and not db.is_suppressed("a@acme.com")
+    assert db.scalar("SELECT status FROM leads WHERE id=1") == "replied"
+    assert mailer.process_inbox(db, [{"from": "a@acme.com", "body": "again"}]) == {"replies": 0, "bounces": 0}

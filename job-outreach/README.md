@@ -1,149 +1,143 @@
-# jobhunt
+# jobhunt: internship auto emailer
 
-An end-to-end job search pipeline built around the four recommendations in the
-architecture brief:
-
-1. **Skip consumer job boards.** Jobs come straight from employer ATS APIs
-   (Greenhouse, Lever, Ashby, Workday). These are public JSON endpoints published
-   for embedding job boards, so there are no scrapers to break and no anti-bot walls.
-2. **Tailor documents against a fixed schema.** Your master resume is a JSON Resume
-   file that tailoring can never change. The LLM only proposes rephrasings that
-   point back to your existing bullets, and a fact guard rejects any rewrite that
-   adds a skill or number not in your own material.
-3. **Find contacts through B2B data providers, not LinkedIn.** Hiring managers are
-   looked up via Apollo.io and/or Hunter.io by company domain and target title.
-4. **Send a small volume of authenticated cold email.** Sending is refused unless
-   SPF, DKIM and DMARC are published. On top of that: a warm-up ramp, a per-domain
-   daily cap (25 by default), randomised spacing between messages, one-click
-   unsubscribe (RFC 8058), a suppression list, and an automatic pause when the
-   bounce rate rises.
+Finds people and companies taking **winter and summer interns**, crafts a
+tailored resume for each one, and emails them directly. No application portals.
 
 ```
- ATS APIs ──► discover ──► score & filter ──► enrich (Apollo/Hunter)
+ LinkedIn hiring posts ─┐                         ┌─► founders / eng leads / recruiters
+ LinkedIn intern listings ─► leads ─► find people ┤   (Apollo, Hunter)
+ your company list ─────┘     (Apify)             └─► post author's own email
                                    │
-                                   ▼
- master_resume.json ──► tailor (LLM + fact guard) ──► PDF (WeasyPrint)
+ your resume (PDF) ─► Resume crafter ─► per-lead resume + pitch (LLM + fact guard) ─► PDF
                                    │
-                                   ▼
-                     queue drafts ──► YOU review/approve ──► send (throttled SMTP)
-                                                        └─► LinkedIn note (you send it by hand)
+                     drafts ─► auto-approve (verified emails) or you ─► throttled SMTP send
+                                   │
+                     inbox (IMAP): replies stop follow-ups, bounces get suppressed
+                                   │
+                     one threaded follow-up after N days with no reply
 ```
 
-## LinkedIn: drafted, never automated
+## Where leads come from
 
-The brief recommends browser automation with stealth patches as a fallback for
-LinkedIn. This project deliberately doesn't do that. Driving your account with
-CDP masking and simulated mouse movement breaks LinkedIn User Agreement §8.2,
-and LinkedIn actively detects it, so you'd be risking your real professional
-profile. When a contact has a LinkedIn URL but no verified email, jobhunt drafts a
-connection note under 300 characters and puts it in your review queue with
-**Copy note** and **Open profile** buttons. You send it yourself, then mark it done.
+| Source | How | Who gets emailed |
+|---|---|---|
+| `hiring_posts` | Google search for `site:linkedin.com/posts hiring intern "Summer 2027" "<role>"` via the Apify Google Search actor | The person who wrote the post (their work email via Apollo), plus decision makers at their company |
+| `linkedin_jobs` | LinkedIn internship listings (`f_E=1`) via an Apify actor. Used only to learn who's hiring interns; we never apply through the listing | The job poster if listed, then founders, CTO and engineering managers at that company |
+| `companies` | Your own list ("Razorpay, razorpay.com" or a domain), entered on the Targeting page | Founders, CTO, engineering leads, recruiters there |
 
-## Quick start
+All scraping runs inside Apify. Nothing logs into your LinkedIn account, and
+LinkedIn messages are never automated. When someone has no findable email, a
+connection note is drafted for you to send by hand.
+
+## Resume crafter
+
+Upload your resume PDF (or paste the text) on **Resume crafter**. The LLM
+converts it to JSON Resume, and anything in the result that isn't in your
+original text is flagged for you to check. Edit the JSON there, preview it, and
+download a general internship resume PDF. Students get Education, Skills and
+Projects first.
+
+For every lead, a tailored copy is built from that master:
+
+- bullets are reordered and reworded toward what they're hiring for;
+- a rewrite is rejected if it mentions a skill or number that isn't in **that
+  original bullet**, and the summary, pitch and cover letter may only use skills
+  and numbers that appear somewhere in your resume;
+- skills are reordered, never added;
+- a structural diff guarantees that schools, employers, titles and dates are
+  unchanged, and the build fails if anything differs.
+
+## Auto emailer
+
+Free hosts sleep and kill long-running loops, so the emailer is driven by a
+**tick**. Something external calls `/cron/tick` every ~15 minutes. Each tick:
+
+1. checks the inbox over IMAP: replies stop follow-ups, bounce notices suppress
+   the address;
+2. every `cycle_every_hours`, runs a full cycle: find leads, find people, craft
+   up to `tailor_per_cycle` resumes, and draft emails;
+3. queues follow-ups that are due and, if **auto-send** is on, approves drafts
+   to verified addresses (or confidence at or above `min_email_confidence`);
+4. sends up to `per_tick` emails, within the warm-up ramp and the daily cap.
+
+With auto-send off (the default), everything is drafted and waits for you on
+**Emails**, where there's an **Approve all** button.
+
+Trigger options:
+
+- [cron-job.org](https://cron-job.org), free, every 15 minutes:
+  `https://<host>/cron/tick?key=<CRON_SECRET>`. Recommended; it also keeps a
+  free Render instance awake.
+- The Vercel cron in `vercel/vercel.json` (daily backstop; sends
+  `Authorization: Bearer <CRON_SECRET>`).
+- Locally: `jobhunt autopilot --loop 15`.
+
+## Keys you need
+
+| Variable | For | Notes |
+|---|---|---|
+| `APIFY_TOKEN` | finding leads | console.apify.com → Settings → Integrations. Pay-per-result; start with `max_results_per_query` around 20 |
+| `APOLLO_API_KEY` and/or `HUNTER_API_KEY` | finding emails | Apollo matches post authors by LinkedIn URL; Hunter fills gaps |
+| `LLM_API_KEY` (+ `LLM_BASE_URL`, `LLM_MODEL`) | resume import and tailoring | any OpenAI-compatible API (OpenAI, Groq, OpenRouter, Gemini's OpenAI endpoint) |
+| `SMTP_*`, `SENDER_EMAIL`, `SENDER_NAME`, `DKIM_SELECTOR` | sending | a dedicated outreach domain with SPF, DKIM and DMARC published |
+| `IMAP_HOST` | reply detection | login defaults to the SMTP credentials |
+| `DATABASE_URL` | persistence | Postgres. Without it, data lives in SQLite and is lost on every redeploy of a free host |
+| `CRON_SECRET`, `DASHBOARD_PASSWORD`, `UNSUBSCRIBE_SECRET`, `PUBLIC_BASE_URL` | security and links | `PUBLIC_BASE_URL` must be public so unsubscribe links work |
+
+## Quick start (local)
 
 ```bash
 cd job-outreach
 python3 -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"            # WeasyPrint needs Pango: apt install libpango-1.0-0 libpangoft2-1.0-0
-
-jobhunt init                       # creates config.yaml and .env
-# edit config.yaml: companies to watch, filters, your resume path
-# edit .env: LLM / Apollo / Hunter keys, SMTP for your outreach domain
-
-jobhunt run                        # discover + enrich + tailor + queue
+jobhunt init                       # creates config.yaml and .env; fill in .env
+jobhunt import-resume my-resume.pdf
 jobhunt serve                      # dashboard at http://localhost:8000
 ```
-
-Everything also works without any API keys. In that mode discovery is live,
-tailoring uses the offline deterministic engine (it reorders bullets and skills
-by relevance and fills message templates), and you add contacts yourself.
-
-### Finding a company's ATS board token
-
-| ATS        | Careers URL looks like                                   | `ats`        | `board`                         |
-|------------|----------------------------------------------------------|--------------|---------------------------------|
-| Greenhouse | `boards.greenhouse.io/airbnb`                            | `greenhouse` | `airbnb`                        |
-| Lever      | `jobs.lever.co/palantir`                                 | `lever`      | `palantir`                      |
-| Ashby      | `jobs.ashbyhq.com/ramp`                                  | `ashby`      | `ramp`                          |
-| Workday    | `nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite`  | `workday`    | `nvidia/5/NVIDIAExternalCareerSite` |
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `jobhunt discover` | Pull every posting from the configured boards, score it against your resume, and shortlist the ones that pass your filters. Safe to re-run. |
-| `jobhunt enrich [--refresh]` | Look up target-title contacts at companies that have shortlisted jobs (Apollo first, then Hunter, then Hunter's email finder to fill gaps). |
-| `jobhunt tailor [--job ID] [--limit N] [--offline]` | Build a tailored resume PDF, cover letter PDF, email pitch and LinkedIn note. |
-| `jobhunt queue` | Create drafts: email when there's a verified address, otherwise a LinkedIn note. Each person is pitched for at most one role. |
-| `jobhunt review` / `approve ID…` / `reject ID…` / `done ID…` | Review drafts from the terminal (the dashboard does the same). |
-| `jobhunt check-domain [domain]` | Check SPF, DKIM, DMARC, MX and forward-confirmed reverse DNS. |
-| `jobhunt send [--limit N]` | **Dry run**: writes `.eml` files to `data/output/outbox/` and leaves the database untouched. |
-| `jobhunt send --live` | Real sending. Refuses to run if the domain isn't authenticated or the unsubscribe URL isn't public. |
-| `jobhunt suppress EMAIL…` | Never contact these addresses. |
-| `jobhunt status` | Pipeline counts and today's remaining send budget. |
-| `jobhunt serve` | Dashboard, plus the public `/u/<token>` unsubscribe endpoint. |
+| `jobhunt import-resume FILE` | Import your resume (PDF, text or JSON Resume) as the master |
+| `jobhunt discover` | Find internship leads from the enabled sources. Safe to re-run |
+| `jobhunt enrich [--limit N]` | Find people and emails for new leads |
+| `jobhunt tailor [--lead ID] [--limit N] [--offline]` | Craft the per-lead resume PDF, cover letter, pitch and LinkedIn note |
+| `jobhunt queue` | Draft emails (or LinkedIn notes when there's no email). One initial email per person, ever |
+| `jobhunt followups` | Queue one follow-up for unanswered emails |
+| `jobhunt run` | discover + enrich + tailor + queue |
+| `jobhunt autopilot [--cycle] [--loop MIN]` | One auto-emailer tick, or keep ticking |
+| `jobhunt review` / `approve ID…` / `reject ID…` / `done ID…` | Review drafts from the terminal |
+| `jobhunt check-replies` | Scan the inbox for replies and bounces |
+| `jobhunt check-domain [domain]` | Check SPF, DKIM, DMARC, MX and forward-confirmed reverse DNS |
+| `jobhunt send [--live] [--limit N]` | Send approved emails. A dry run (writes `.eml` files to `data/outbox/`) unless `--live` |
+| `jobhunt suppress EMAIL…` | Never contact these addresses |
+| `jobhunt status` | Counts and today's remaining send budget |
+| `jobhunt serve` | Dashboard, `/cron/tick`, and the public `/u/<token>` unsubscribe endpoint |
 
-## How the fact guard works
+## Sending safely
 
-Tailoring never edits your resume directly. The tailored copy is rebuilt from the
-master, and only three things can change: `basics.summary`, the order and wording
-of `work[*].highlights`, and the order of `skills`.
+Cold email that lands in spam is worse than none, so these are enforced in code:
 
-- Every rewritten bullet must name the original bullet it rephrases. A rewrite is
-  rejected (and the original wording kept) if it mentions a skill or number that
-  isn't in **that original bullet**. That stops the LLM from, for example, moving
-  "Kubernetes" from one job into a bullet about another.
-- The summary, cover letter, pitch and LinkedIn note may only use skills and
-  numbers that appear somewhere in your master resume.
-- Skills can be reordered but never added. Unknown names in `skills_priority`
-  are ignored.
-- After tailoring, a structural diff checks that employers, titles, dates,
-  education and certificates are byte-identical to the master. If anything
-  differs, the build fails rather than producing an altered resume.
-- Each job page lists what the guard rejected, and shows skills the posting
-  wants that you don't have. Those are never added to your resume.
+- sending is refused unless SPF, DKIM and DMARC are published for the sender domain;
+- a warm-up ramp of 5/day in week 1, then 10, 15 and 20, then the daily cap (25);
+- randomised spacing between messages;
+- RFC 8058 one-click unsubscribe, a visible opt-out line, and a suppression list;
+- no new thread with the same person within 90 days, and at most one follow-up,
+  threaded with `In-Reply-To`;
+- an automatic pause if the hard-bounce rate goes above 5%.
 
-## Email deliverability checklist
+Use a separate domain just for outreach (e.g. `alexrivera-careers.com`), never
+`@gmail.com` and never your main address's domain.
 
-1. Register a separate domain just for outreach (e.g. `janedoe-careers.com`).
-   Never use `@gmail.com`, and never use your main domain.
-2. Set up a mailbox on it (Google Workspace, Microsoft 365, Zoho, etc.) and
-   publish SPF, DKIM and `_dmarc` (`p=none` at minimum).
-3. Set `SENDER_EMAIL`, `DKIM_SELECTOR` and the `SMTP_*` values in `.env`, then run
-   `jobhunt check-domain` until it prints `ready to send`.
-4. Deploy the dashboard somewhere public and set `PUBLIC_BASE_URL`,
-   `UNSUBSCRIBE_SECRET` and `DASHBOARD_PASSWORD`. The unsubscribe link in every
-   email points there.
-5. Let the warm-up ramp work: 5/day in week 1, then 10, 15 and 20, and the cap
-   after that. Send once a day with **Send approved now** on the Sending page,
-   or with `jobhunt send --live`.
+## Hosting
 
-Whatever sends the email and whatever serves `/u/<token>` must use the **same
-database and the same `UNSUBSCRIBE_SECRET`**. Otherwise an unsubscribe recorded
-by the web app would never reach the sender. The simplest way to guarantee that
-is to run everything, sending included, from one deployment.
-
-## Deploying the dashboard on Render
-
-`render.yaml` defines a web service bound to `0.0.0.0:$PORT`. Render's filesystem
-is ephemeral, so the blueprint mounts a persistent disk at `/var/data` for the
-SQLite database and generated PDFs (disks need a paid instance type). Put your
-`config.yaml` and master resume on that disk (for example with `render ssh`),
-set the secrets marked `sync: false` in the Render dashboard, and do all
-discovery, tailoring and sending from the hosted dashboard so there's only one
-database.
-
-If you'd rather not host anything, run `jobhunt serve` on your own machine and
-expose it through a tunnel (with `DASHBOARD_PASSWORD` set, only `/u/*` and
-`/healthz` are reachable without a password).
-
-## Vercel front door
-
-`vercel/` is a code-free Vercel project that rewrites every request to the
-Render service, so the public URL can live on Vercel while the stateful app
-(SQLite, background discovery and sending) stays on Render. Point
-`PUBLIC_BASE_URL` on Render at the Vercel URL so unsubscribe links use it.
-See `vercel/README.md`.
+`render.yaml` defines the web service plus a free Postgres database. Render's
+filesystem is ephemeral, so `DATABASE_URL` is what keeps your resume, leads,
+sent history and suppression list across deploys. Free Render Postgres expires
+after 30 days; upgrade it or point `DATABASE_URL` at another Postgres (Neon,
+Supabase) before then. `vercel/` is a code-free front door that proxies to
+Render; see `vercel/README.md`.
 
 ## Tests
 
@@ -151,8 +145,8 @@ See `vercel/README.md`.
 pytest -q
 ```
 
-The tests cover ATS response parsing for all four vendors, keyword scoring, the
-fact guard (including adversarial LLM output), provider ranking, the DNS checks,
-the throttle (warm-up, cap, bounces, re-contact window, dry run), unsubscribe
-tokens and headers, a full discover-to-send run, and the dashboard (including
-basic auth and one-click unsubscribe). Every HTTP call is mocked.
+The tests mock every HTTP call. They cover the Apify sources and filtering, Apollo
+and Hunter enrichment (including resolving a post author), the fact guard (including
+adversarial LLM output), resume import, the throttle, follow-up threading, reply and
+bounce detection, a full discover-to-send autopilot run, and the dashboard (resume
+crafter, targeting, cron auth, basic auth, one-click unsubscribe).

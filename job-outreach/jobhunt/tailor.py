@@ -18,7 +18,8 @@ from .llm import LLMClient, LLMError
 LINKEDIN_NOTE_LIMIT = 300
 PITCH_WORD_LIMIT = 170
 
-SYSTEM_PROMPT = """You tailor a candidate's existing resume to one job posting.
+SYSTEM_PROMPT = """You tailor a student's existing resume for one internship opportunity: a job posting,
+a LinkedIn post by someone hiring interns, or a direct inquiry to a company.
 
 HARD RULES (violations are discarded automatically):
 - Never invent skills, tools, employers, titles, dates, degrees, metrics or outcomes.
@@ -36,7 +37,7 @@ Return a JSON object with exactly these keys:
   "skills_priority": ["skill names copied verbatim from the resume skills, most relevant first"],
   "work": [{"index": <work index>, "highlights": [{"source": <bullet index>, "text": "rephrased bullet"}]}],
   "cover_letter": "3 short paragraphs, no greeting line and no sign-off",
-  "pitch": "cold email body for a hiring manager, under 140 words, no greeting and no sign-off, ends with a low-pressure ask",
+  "pitch": "cold email body to a founder/engineering lead asking about an internship for the given season, under 120 words, specific to the company and role, no greeting and no sign-off, ends with a low-pressure ask",
   "linkedin_note": "connection note under 280 characters, no greeting"
 }"""
 
@@ -57,11 +58,12 @@ class TailorResult:
 # ---------------------------------------------------------------- guard
 
 class Guard:
-    def __init__(self, master: dict, job_description: str):
+    def __init__(self, master: dict, job_description: str, extra_allowed: str = ""):
         self.master = master
         self.corpus = resume_mod.corpus(master)
         self.corpus_skills = set(keywords.extract(self.corpus))
-        self.corpus_numbers = keywords.numbers(self.corpus)
+        # Numbers from the role title and season ("Summer 2027") may be quoted back.
+        self.corpus_numbers = keywords.numbers(self.corpus) | keywords.numbers(extra_allowed)
         self.job_skills = set(keywords.extract(job_description))
         self.violations: list[str] = []
 
@@ -157,27 +159,42 @@ def _human_list(items: list[str]) -> str:
 
 # ---------------------------------------------------------------- deterministic engine
 
+def _school(master: dict) -> str | None:
+    edu = master.get("education") or []
+    return edu[0].get("institution") if edu else None
+
+
 def _template_texts(master: dict, job: dict, matched: list[str]) -> dict:
     b = master["basics"]
-    role, company = job["title"], job["company"]
-    skills = _human_list(matched[:4]) or "the core skills in the posting"
-    label = b.get("label") or "engineer"
+    company = job.get("company") or "your team"
+    season = f"a {job['season']}" if job.get("season") else "an upcoming"
+    src = job.get("source")
+    if src == "hiring_posts":
+        hook = "I saw the LinkedIn post about hiring interns" + (f" at {job['company']}" if job.get("company") else "")
+    elif src == "linkedin_jobs":
+        hook = f"I saw the {job['title']} opening"
+    else:
+        hook = f"I've been following what {company} is building"
+    skills = _human_list(matched[:4]) or "software engineering"
+    school = _school(master)
+    who = f"a student at {school}" if school else (b.get("label") or "a student").lower()
     achievement = _top_achievement(master, set(matched)) or ""
     pitch = (
-        f"I saw the {role} opening at {company} and wanted to reach out directly. "
-        f"I'm a {label.lower()} whose day-to-day work covers {skills}, which lines up closely with what the role asks for. "
+        f"I'm {who} looking for {season} internship and I'd love to work with {company}. "
+        f"{hook}, and it lines up with what I've been working on: {skills}. "
         f"{achievement} "
-        f"I've attached a resume tailored to the position. "
-        f"Would you be open to a short call, or could you point me to the right person on the team?"
+        f"I've attached a one-page resume. If there's room for an intern this "
+        f"{job['season'].split()[0].lower() if job.get('season') else 'cycle'}, "
+        f"would you be open to a quick 15-minute chat, or could you point me to the right person?"
     ).replace("  ", " ").strip()
     cover = (
-        f"I'm writing to express my interest in the {role} position at {company}. "
+        f"I'm writing to ask about {season.split(' ', 1)[1]} internship opportunities at {company}. "
         + (f"In brief, my background: {b['summary'].strip()}" if b.get("summary") else "")
         + "\n\n"
-        + f"The role emphasises {skills}, which is where most of my recent work has been. {achievement}\n\n"
-        f"I'd welcome the chance to discuss how I could contribute to {company}. Thank you for your time and consideration."
+        + f"Most of my recent work has been in {skills}. {achievement}\n\n"
+        f"I'd be glad to contribute to {company} as an intern and would welcome a short conversation. Thank you for your time."
     ).replace("  ", " ").strip()
-    note = f"I'm interested in the {role} role at {company}; my background is in {_human_list(matched[:3]) or label.lower()}. Would love to connect."
+    note = f"I'm {who} interested in {season.split(' ', 1)[1]} internships at {company}; I work with {_human_list(matched[:3]) or 'software'}. Would love to connect."
     return {"pitch": pitch, "cover_letter": cover, "linkedin_note": note}
 
 
@@ -199,14 +216,15 @@ def tailor(master: dict, job: dict, llm: LLMClient | None = None) -> TailorResul
     matched = [k for k in job_kw_list if k in cand_kw]
     missing = [k for k in job_kw_list if k not in cand_kw]
 
-    guard = Guard(master, description)
+    guard = Guard(master, description, f"{job['title']} {job.get('season') or ''}")
     engine = "deterministic"
     proposal = _deterministic(master, job, job_kw)
     texts = _template_texts(master, job, matched)
 
     if llm is not None:
         user = json.dumps({
-            "job": {"title": job["title"], "company": job["company"], "description": description[:12000]},
+            "opportunity": {"source": job.get("source"), "title": job["title"], "company": job.get("company"),
+                            "season": job.get("season"), "description": description[:12000]},
             "candidate_resume": master,
             "skills_candidate_has_that_job_wants": matched,
             "skills_job_wants_that_candidate_lacks_DO_NOT_CLAIM": missing,
@@ -295,8 +313,25 @@ def _assert_skills_subset(master: dict, tailored: dict) -> None:
 
 def compose_email(master: dict, job: dict, contact: dict, pitch: str) -> tuple[str, str]:
     first = (contact.get("first_name") or contact.get("name", "").split(" ")[0] or "there").strip()
-    subject = f"{job['title']} at {job['company']} - {master['basics']['name']}"
+    name = master["basics"]["name"]
+    school = _school(master)
+    season = job.get("season")
+    head = f"{season} internship" if season else "Internship"
+    subject = f"{head} - {name}" + (f", {school}" if school else "")
     body = f"Hi {first},\n\n{pitch}\n\nBest,\n{_signature(master)}"
+    return subject, body
+
+
+def compose_followup(master: dict, job: dict, contact: dict, original_subject: str) -> tuple[str, str]:
+    first = (contact.get("first_name") or contact.get("name", "").split(" ")[0] or "there").strip()
+    company = job.get("company") or "your team"
+    season = f"a {job['season']}" if job.get("season") else "an upcoming"
+    subject = original_subject if original_subject.lower().startswith("re:") else f"Re: {original_subject}"
+    body = (
+        f"Hi {first},\n\nJust bringing this back to the top of your inbox. I'd still love to be considered for "
+        f"{season} internship at {company}, and I've attached my resume again in case it's useful. "
+        f"Totally understand if the timing isn't right.\n\nThanks,\n{master['basics']['name']}"
+    )
     return subject, body
 
 

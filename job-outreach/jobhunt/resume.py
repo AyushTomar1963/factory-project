@@ -11,8 +11,6 @@ from . import keywords
 # Everything else must be byte-identical to the master.
 MUTABLE_PATHS = {("basics", "summary"), ("work", "*", "highlights"), ("skills",)}
 
-REQUIRED_TOP = ("basics", "work")
-
 
 class ResumeError(ValueError):
     pass
@@ -25,15 +23,18 @@ def load(path: str | Path) -> dict:
 
 
 def validate(data: dict) -> None:
-    for key in REQUIRED_TOP:
-        if key not in data:
-            raise ResumeError(f"master resume is missing '{key}'")
+    """Students often have no work history yet, so only basics are mandatory."""
+    if not isinstance(data, dict) or not isinstance(data.get("basics"), dict):
+        raise ResumeError("master resume is missing 'basics'")
+    data.setdefault("work", [])
     basics = data["basics"]
     for key in ("name", "email"):
         if not basics.get(key):
             raise ResumeError(f"basics.{key} is required")
+    if not isinstance(data["work"], list):
+        raise ResumeError("work must be a list")
     for i, w in enumerate(data["work"]):
-        for key in ("name", "position", "startDate"):
+        for key in ("name", "position"):
             if not w.get(key):
                 raise ResumeError(f"work[{i}].{key} is required")
         if not isinstance(w.get("highlights", []), list):

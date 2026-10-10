@@ -38,27 +38,31 @@
     </div>
   </header>
 
-  {% if r.basics.summary %}
-  <h2>Summary</h2>
-  <p>{{ r.basics.summary }}</p>
-  {% endif %}
-
-  {% if r.skills %}
-  <h2>Skills</h2>
-  <div class="skills">
-    {% for s in r.skills %}<div><b>{{ s.name }}:</b> {{ s.keywords | join(", ") }}</div>{% endfor %}
+{% macro education() %}
+  {% if r.education %}
+  <h2>Education</h2>
+  {% for e in r.education %}
+  <div class="entry">
+    <div class="row"><span class="org">{{ e.institution }}</span><span class="dates">{% if e.startDate %}{{ e.startDate | ym }} - {% endif %}{{ (e.endDate | ym) if e.endDate else "Expected" }}</span></div>
+    <div class="row"><span class="role">{{ [e.studyType, e.area] | select | join(", ") }}</span>{% if e.score %}<span>{{ e.score }}</span>{% endif %}</div>
+    {% if e.courses %}<div>Coursework: {{ e.courses | join(", ") }}</div>{% endif %}
   </div>
+  {% endfor %}
   {% endif %}
-
+{% endmacro %}
+{% macro experience() %}
+  {% if r.work %}
   <h2>Experience</h2>
   {% for w in r.work %}
   <div class="entry">
-    <div class="row"><span class="org">{{ w.name }}</span><span class="dates">{{ w.startDate | ym }} - {{ (w.endDate | ym) if w.endDate else "Present" }}</span></div>
+    <div class="row"><span class="org">{{ w.name }}</span><span class="dates">{% if w.startDate %}{{ w.startDate | ym }} - {{ (w.endDate | ym) if w.endDate else "Present" }}{% else %}{{ w.endDate | ym }}{% endif %}</span></div>
     <div class="row"><span class="role">{{ w.position }}</span>{% if w.location %}<span>{{ w.location }}</span>{% endif %}</div>
     {% if w.highlights %}<ul>{% for h in w.highlights %}<li>{{ h }}</li>{% endfor %}</ul>{% endif %}
   </div>
   {% endfor %}
-
+  {% endif %}
+{% endmacro %}
+{% macro projects() %}
   {% if r.projects %}
   <h2>Projects</h2>
   {% for p in r.projects %}
@@ -69,20 +73,32 @@
   </div>
   {% endfor %}
   {% endif %}
+{% endmacro %}
 
-  {% if r.education %}
-  <h2>Education</h2>
-  {% for e in r.education %}
-  <div class="entry">
-    <div class="row"><span class="org">{{ e.institution }}</span><span class="dates">{% if e.startDate %}{{ e.startDate | ym }} - {% endif %}{{ (e.endDate | ym) if e.endDate else "" }}</span></div>
-    <div class="role">{{ [e.studyType, e.area] | select | join(", ") }}</div>
-  </div>
-  {% endfor %}
+  {% if r.basics.summary %}
+  <h2>Summary</h2>
+  <p>{{ r.basics.summary }}</p>
   {% endif %}
+
+  {% if student %}{{ education() }}{% endif %}
+
+  {% if r.skills %}
+  <h2>Skills</h2>
+  <div class="skills">
+    {% for s in r.skills %}<div><b>{{ s.name }}:</b> {{ s.keywords | join(", ") }}</div>{% endfor %}
+  </div>
+  {% endif %}
+
+  {% if student %}{{ projects() }}{{ experience() }}{% else %}{{ experience() }}{{ projects() }}{{ education() }}{% endif %}
 
   {% if r.certificates %}
   <h2>Certifications</h2>
   <ul>{% for c in r.certificates %}<li>{{ c.name }}{% if c.issuer %}, {{ c.issuer }}{% endif %}{% if c.date %} ({{ c.date | ym }}){% endif %}</li>{% endfor %}</ul>
+  {% endif %}
+
+  {% if r.awards %}
+  <h2>Awards</h2>
+  <ul>{% for a in r.awards %}<li>{{ a.title }}{% if a.awarder %}, {{ a.awarder }}{% endif %}{% if a.date %} ({{ a.date | ym }}){% endif %}</li>{% endfor %}</ul>
   {% endif %}
 </body>
 </html>

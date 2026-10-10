@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block body %}
-<h1>Outreach review</h1>
-<p class="sub">Nothing is sent until you approve it. LinkedIn notes are for you to send by hand; this tool never automates LinkedIn.</p>
+<div class="spread"><div><h1>Emails</h1>
+<p class="sub">Drafts wait here until approved (by you, or by autopilot for verified addresses when auto-send is on). LinkedIn notes are for you to send by hand; this tool never automates LinkedIn.</p></div>
+{% if status == 'draft' and counts.get('draft') %}<form method="post" action="/outreach/approve-all" onsubmit="return confirm('Approve every email draft?')"><button class="btn ok">Approve all email drafts</button></form>{% endif %}</div>
 
 <div class="tabs">
   {% for s in ['draft', 'approved', 'sent', 'done', 'rejected', 'skipped', 'bounced', 'failed', 'all'] %}
@@ -17,11 +18,11 @@
     <div>
       <b>{{ o.name }}</b> <span class="muted">{{ o.contact_title or '' }}</span>
       <div class="small muted">
-        {{ o.company }} &middot; <a href="/jobs/{{ o.job_id }}">{{ o.job_title }}</a> &middot; match {{ ((o.match_score or 0) * 100)|round|int }}%
+        {{ o.company or 'company unknown' }} &middot; <a href="/leads/{{ o.lead_id }}">{{ o.lead_title }}</a>{% if o.season %} &middot; {{ o.season }}{% endif %}
         &middot; {% if o.channel == 'email' %}{{ o.email }} ({{ o.email_confidence or '?' }}% via {{ o.source }}){% else %}<a href="{{ o.linkedin_url }}" target="_blank" rel="noopener">LinkedIn profile</a>{% endif %}
       </div>
     </div>
-    <div class="row"><span class="pill">{{ o.channel }}</span><span class="pill {{ o.status }}">{{ o.status }}</span></div>
+    <div class="row"><span class="pill">{{ o.channel }}{{ ' follow-up' if o.kind == 'followup' }}</span><span class="pill {{ o.status }}">{{ o.status }}</span>{% if o.replied_at %}<span class="pill replied">replied</span>{% endif %}</div>
   </div>
   {% if o.error %}<p class="small bad-t">{{ o.error }}</p>{% endif %}
 
@@ -31,7 +32,7 @@
     {% if o.channel == 'email' %}
       <input type="text" name="subject" value="{{ o.subject }}" style="margin-bottom:8px">
       <textarea name="body" {{ 'readonly' if o.status == 'approved' }}>{{ o.body }}</textarea>
-      <p class="small muted" style="margin:4px 0 10px">An unsubscribe footer and RFC 8058 List-Unsubscribe headers are added at send time; the tailored resume PDF is attached.</p>
+      <p class="small muted" style="margin:4px 0 10px">An unsubscribe footer and RFC 8058 List-Unsubscribe headers are added at send time; the resume crafted for this lead is attached.</p>
     {% else %}
       <textarea name="body" id="note-{{ o.id }}" maxlength="300" style="min-height:90px" oninput="document.getElementById('cnt-{{ o.id }}').textContent=this.value.length">{{ o.body }}</textarea>
       <div class="counter"><span id="cnt-{{ o.id }}">{{ o.body|length }}</span>/300 characters</div>
@@ -59,6 +60,6 @@
   {% endif %}
 </div>
 {% else %}
-<div class="card"><p class="muted">Nothing here. Tailor some jobs and run "Draft outreach" from the overview.</p></div>
+<div class="card"><p class="muted">Nothing here. Run a cycle from the overview.</p></div>
 {% endfor %}
 {% endblock %}

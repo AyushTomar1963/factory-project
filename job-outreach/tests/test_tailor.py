@@ -101,13 +101,40 @@ def test_find_mutations_detects_changes(master):
 
 
 def test_compose_email_and_note(master):
-    subject, body = tailor.compose_email(master, JOB, {"name": "Ann Lee", "first_name": "Ann"}, "Pitch.")
-    assert subject == "Senior Backend Engineer at Acme - Jane Doe"
+    school = master["education"][0]["institution"]
+    job = {**JOB, "season": "Summer 2027"}
+    subject, body = tailor.compose_email(master, job, {"name": "Ann Lee", "first_name": "Ann"}, "Pitch.")
+    assert subject == f"Summer 2027 internship - Jane Doe, {school}"
     assert body.startswith("Hi Ann,\n\nPitch.") and "jane@janedoe-careers.com" in body
+    assert tailor.compose_email(master, JOB, {"name": "Ann"}, "P")[0].startswith("Internship - Jane Doe")
     note = tailor.compose_linkedin_note({"name": "Ann Lee"}, "x " * 400)
     assert len(note) <= 300 and note.startswith("Hi Ann,")
+
+
+def test_internship_pitch_depends_on_source(master):
+    post = {"source": "hiring_posts", "title": "Hiring interns", "season": "Winter 2026",
+            "description": "We're hiring Python interns for Winter 2026"}
+    out = tailor.tailor(master, post)
+    assert "LinkedIn post about hiring interns" in out.pitch
+    assert "a Winter 2026 internship" in out.pitch
+    assert out.violations == [], "season year may be quoted back"
+    direct = tailor.tailor(master, {"source": "companies", "title": "Internship", "company": "Acme"})
+    assert "following what Acme is building" in direct.pitch and "an upcoming internship" in direct.pitch
+
+
+def test_followup_threads_subject(master):
+    subject, body = tailor.compose_followup(master, {"company": "Acme", "season": "Summer 2027"},
+                                            {"name": "Ann Lee"}, "Summer 2027 internship - Jane Doe")
+    assert subject == "Re: Summer 2027 internship - Jane Doe"
+    assert body.startswith("Hi Ann,") and "a Summer 2027 internship at Acme" in body
+    assert tailor.compose_followup(master, {}, {"name": "A"}, subject)[0] == subject
 
 
 def test_validate_rejects_bad_resume():
     with pytest.raises(resume_mod.ResumeError):
         resume_mod.validate({"basics": {"name": "x"}, "work": []})
+    with pytest.raises(resume_mod.ResumeError):
+        resume_mod.validate({"work": []})
+    student = {"basics": {"name": "x", "email": "x@y.com"}}
+    resume_mod.validate(student)
+    assert student["work"] == [], "students without work history are valid"

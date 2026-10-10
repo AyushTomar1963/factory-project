@@ -1,27 +1,41 @@
 services:
   - type: web
-    name: jobhunt
+    name: jobhunt-outreach
     runtime: python
     rootDir: job-outreach
-    plan: starter
+    plan: free
     buildCommand: pip install -e .
     startCommand: jobhunt serve --host 0.0.0.0
     healthCheckPath: /healthz
-    disk:
-      name: jobhunt-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.3
       - key: JOBHUNT_CONFIG
-        value: /var/data/config.yaml
-      - key: JOBHUNT_DB
-        value: /var/data/jobhunt.db
-      - key: JOBHUNT_OUTPUT_DIR
-        value: /var/data/output
+        value: config.demo.yaml
+      - key: DATABASE_URL
+        fromDatabase:
+          name: jobhunt-db
+          property: connectionString
       - key: UNSUBSCRIBE_SECRET
         generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      - key: DASHBOARD_PASSWORD
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: APIFY_TOKEN
+        sync: false
+      - key: APOLLO_API_KEY
+        sync: false
+      - key: HUNTER_API_KEY
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_BASE_URL
+        sync: false
+      - key: LLM_MODEL
+        sync: false
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT
@@ -30,21 +44,17 @@ services:
         sync: false
       - key: SMTP_PASSWORD
         sync: false
-      - key: DKIM_SELECTOR
-        sync: false
-      - key: SENDER_POSTAL_ADDRESS
-        sync: false
-      - key: DASHBOARD_PASSWORD
-        sync: false
-      - key: PUBLIC_BASE_URL
+      - key: IMAP_HOST
         sync: false
       - key: SENDER_NAME
         sync: false
       - key: SENDER_EMAIL
         sync: false
-      - key: LLM_API_KEY
+      - key: DKIM_SELECTOR
         sync: false
-      - key: APOLLO_API_KEY
+      - key: SENDER_POSTAL_ADDRESS
         sync: false
-      - key: HUNTER_API_KEY
-        sync: false
+
+databases:
+  - name: jobhunt-db
+    plan: free

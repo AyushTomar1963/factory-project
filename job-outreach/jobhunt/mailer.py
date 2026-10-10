@@ -1,28 +1,34 @@
 """Low-volume, authenticated cold-email dispatch.
 
 Safety rails, all enforced here rather than left to the caller:
-  * only outreach rows a human has approved are sent;
+  * only approved outreach rows are sent (approved by you, or by autopilot
+    for verified addresses when auto-send is switched on);
   * SPF + DKIM + DMARC must be published for the sender domain;
   * warm-up ramp and per-domain daily cap;
   * randomised spacing between messages;
-  * suppression list (unsubscribes, hard bounces) and a re-contact window;
+  * suppression list (unsubscribes, hard bounces) and a re-contact window
+    (a single threaded follow-up is the only exception);
   * RFC 8058 one-click List-Unsubscribe headers plus a visible opt-out link;
   * automatic pause when the recent hard-bounce rate is too high.
 """
 from __future__ import annotations
 
 import base64
+import email as email_lib
 import hashlib
 import hmac
+import imaplib
+import json
 import mimetypes
 import random
+import re
 import smtplib
 import ssl
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
-from email.utils import formataddr, formatdate, make_msgid
+from email.utils import formataddr, formatdate, make_msgid, parseaddr
 from pathlib import Path
 from typing import Callable, Protocol
 
@@ -61,7 +67,8 @@ def verify_token(token: str, secret: str) -> str | None:
 # ---------------------------------------------------------------- message
 
 def build_message(settings: Settings, to_email: str, to_name: str, subject: str, body: str,
-                  attachments: list[Path] | None = None) -> EmailMessage:
+                  attachments: list[tuple[str, bytes]] | None = None,
+                  in_reply_to: str | None = None) -> EmailMessage:
     s = settings.secrets
     token = unsubscribe_token(to_email, s.unsubscribe_secret)
     unsub_url = f"{s.public_base_url}/u/{token}"
@@ -78,11 +85,14 @@ def build_message(settings: Settings, to_email: str, to_name: str, subject: str,
     msg["Reply-To"] = s.sender_email
     msg["List-Unsubscribe"] = f"<{unsub_url}>, <mailto:{s.sender_email}?subject=unsubscribe>"
     msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
+    if in_reply_to:
+        msg["In-Reply-To"] = in_reply_to
+        msg["References"] = in_reply_to
     msg.set_content(body + footer)
-    for path in attachments or []:
-        ctype = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+    for filename, data in attachments or []:
+        ctype = mimetypes.guess_type(filename)[0] or "application/octet-stream"
         maintype, subtype = ctype.split("/", 1)
-        msg.add_attachment(path.read_bytes(), maintype=maintype, subtype=subtype, filename=path.name)
+        msg.add_attachment(bytes(data), maintype=maintype, subtype=subtype, filename=filename)
     return msg
 
 
@@ -229,9 +239,12 @@ def send_approved(db: DB, settings: Settings, transport: Transport, limit: int |
         return summary
 
     rows = db.all(
-        "SELECT o.*, c.email, c.name AS contact_name, d.resume_pdf FROM outreach o "
-        "JOIN contacts c ON c.id = o.contact_id LEFT JOIN documents d ON d.job_id = o.job_id "
-        "WHERE o.channel='email' AND o.status='approved' ORDER BY o.approved_at, o.id"
+        "SELECT o.*, c.email, c.name AS contact_name, d.resume_pdf, d.tailored_json, "
+        "p.message_id AS parent_message_id, p.status AS parent_status, p.replied_at AS parent_replied_at "
+        "FROM outreach o JOIN contacts c ON c.id = o.contact_id "
+        "LEFT JOIN documents d ON d.lead_id = o.lead_id LEFT JOIN outreach p ON p.id = o.parent_id "
+        "WHERE o.channel='email' AND o.status='approved' "
+        "ORDER BY CASE WHEN o.kind='followup' THEN 0 ELSE 1 END, o.approved_at, o.id"
     )
     cutoff = (datetime.now(timezone.utc) - timedelta(days=settings.outreach.recontact_after_days)).isoformat()
     domain = settings.secrets.sender_domain
@@ -240,6 +253,7 @@ def send_approved(db: DB, settings: Settings, transport: Transport, limit: int |
         if summary.sent + summary.bounced >= budget:
             break
         email = (row["email"] or "").lower()
+        followup = row["kind"] == "followup"
         if not email:
             mark(db, row["id"], "skipped", "contact has no email")
             summary.skipped += 1
@@ -248,10 +262,14 @@ def send_approved(db: DB, settings: Settings, transport: Transport, limit: int |
             mark(db, row["id"], "skipped", "recipient is on the suppression list")
             summary.skipped += 1
             continue
+        if followup and (row["parent_status"] != "sent" or row["parent_replied_at"]):
+            mark(db, row["id"], "skipped", "original was not delivered or already got a reply")
+            summary.skipped += 1
+            continue
         recent = db.scalar(
             "SELECT 1 FROM send_log WHERE recipient=? AND outcome='sent' AND at >= ?", (email, cutoff)
         )
-        if recent or email in seen:
+        if (recent and not followup) or email in seen:
             mark(db, row["id"], "skipped", f"already contacted within {settings.outreach.recontact_after_days} days")
             summary.skipped += 1
             continue
@@ -264,9 +282,10 @@ def send_approved(db: DB, settings: Settings, transport: Transport, limit: int |
         first = False
 
         attachments = []
-        if settings.outreach.attach_resume and row["resume_pdf"] and Path(row["resume_pdf"]).exists():
-            attachments.append(Path(row["resume_pdf"]))
-        msg = build_message(settings, email, row["contact_name"], row["subject"], row["body"], attachments)
+        if settings.outreach.attach_resume and row["resume_pdf"]:
+            attachments.append((_resume_filename(row["tailored_json"]), row["resume_pdf"]))
+        msg = build_message(settings, email, row["contact_name"], row["subject"], row["body"], attachments,
+                            in_reply_to=row["parent_message_id"] if followup else None)
         try:
             transport.send(msg)
             if dry_run:
@@ -293,9 +312,104 @@ def send_approved(db: DB, settings: Settings, transport: Transport, limit: int |
             "UPDATE outreach SET status='sent', sent_at=?, message_id=?, error=NULL WHERE id=?",
             (now_iso(), msg["Message-ID"], row["id"]),
         )
+        db.execute("UPDATE leads SET status='contacted' WHERE id=? AND status IN ('tailored','queued')",
+                   (row["lead_id"],))
         summary.sent += 1
         log(f"  sent: {email} - {row['subject']}")
     return summary
+
+
+def _resume_filename(tailored_json: str | None) -> str:
+    from .render import pdf_filename
+
+    try:
+        return pdf_filename(json.loads(tailored_json)["resume"])
+    except (TypeError, KeyError, ValueError):
+        return "resume.pdf"
+
+
+# ---------------------------------------------------------------- replies & bounces (IMAP)
+
+_ADDR_RE = re.compile(r"[\w.+'-]+@[\w-]+(?:\.[\w-]+)+")
+
+
+def process_inbox(db: DB, messages: list[dict]) -> dict:
+    """`messages` are {"from", "in_reply_to", "references", "body"} dicts.
+    Replies stop follow-ups; delivery-failure notices count as hard bounces."""
+    counts = {"replies": 0, "bounces": 0}
+    sent = {r["email"].lower(): r for r in db.all(
+        "SELECT DISTINCT c.email FROM outreach o JOIN contacts c ON c.id=o.contact_id "
+        "WHERE o.status='sent' AND c.email IS NOT NULL"
+    )}
+    by_msgid = {r["message_id"]: r["id"] for r in db.all(
+        "SELECT id, message_id FROM outreach WHERE message_id IS NOT NULL")}
+    for m in messages:
+        sender = (parseaddr(m.get("from") or "")[1] or "").lower()
+        if re.match(r"(mailer-daemon|postmaster)@", sender):
+            hits = {a.lower() for a in _ADDR_RE.findall(m.get("body") or "")} & set(sent)
+            for addr in hits:
+                if db.is_suppressed(addr):
+                    continue
+                db.suppress(addr, "hard_bounce")
+                db.execute(
+                    "UPDATE outreach SET status='bounced', error='bounce notice received' WHERE status='sent' "
+                    "AND kind='initial' AND contact_id IN (SELECT id FROM contacts WHERE email=?)", (addr,))
+                _cancel_pending(db, addr, "address bounced")
+                counts["bounces"] += 1
+            continue
+        refs = " ".join([m.get("in_reply_to") or "", m.get("references") or ""])
+        matched_ids = [oid for mid, oid in by_msgid.items() if mid and mid in refs]
+        if sender not in sent and not matched_ids:
+            continue
+        when = now_iso()
+        updated = db.all(
+            "SELECT o.id FROM outreach o JOIN contacts c ON c.id=o.contact_id "
+            "WHERE o.status='sent' AND o.replied_at IS NULL AND c.email=?", (sender,))
+        ids = {r["id"] for r in updated} | set(matched_ids)
+        for oid in ids:
+            db.execute("UPDATE outreach SET replied_at=? WHERE id=? AND replied_at IS NULL", (when, oid))
+        if ids:
+            counts["replies"] += 1
+            if sender in sent:
+                _cancel_pending(db, sender, "they replied")
+            db.execute("UPDATE leads SET status='replied' WHERE id IN "
+                       f"(SELECT lead_id FROM outreach WHERE id IN ({','.join('?' * len(ids))}))", tuple(ids))
+    return counts
+
+
+def _cancel_pending(db: DB, email: str, why: str) -> None:
+    db.execute(
+        "UPDATE outreach SET status='rejected', error=? WHERE status IN ('draft','approved') "
+        "AND contact_id IN (SELECT id FROM contacts WHERE email=?)", (why, email))
+
+
+def fetch_inbox(settings: Settings, days: int = 14) -> list[dict]:
+    s = settings.secrets
+    if not (s.imap_host and s.imap_username):
+        return []
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%d-%b-%Y")
+    out = []
+    with imaplib.IMAP4_SSL(s.imap_host, timeout=60) as box:
+        box.login(s.imap_username, s.imap_password)
+        box.select("INBOX", readonly=True)
+        _, data = box.search(None, f"(SINCE {since})")
+        for num in (data[0] or b"").split()[-300:]:
+            _, parts = box.fetch(num, "(BODY.PEEK[HEADER.FIELDS (FROM IN-REPLY-TO REFERENCES)] BODY.PEEK[TEXT]<0.20000>)")
+            raw = [p[1] for p in parts if isinstance(p, tuple)]
+            if not raw:
+                continue
+            headers = email_lib.message_from_bytes(raw[0])
+            out.append({
+                "from": headers.get("From", ""),
+                "in_reply_to": headers.get("In-Reply-To", ""),
+                "references": headers.get("References", ""),
+                "body": raw[1].decode("utf-8", "replace") if len(raw) > 1 else "",
+            })
+    return out
+
+
+def check_replies(db: DB, settings: Settings) -> dict:
+    return process_inbox(db, fetch_inbox(settings))
 
 
 def _mark(db: DB, outreach_id: int, status: str, error: str | None) -> None:

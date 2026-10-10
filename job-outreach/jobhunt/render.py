@@ -1,4 +1,4 @@
-"""Deterministic local document build: JSON Resume -> HTML -> PDF (WeasyPrint)."""
+"""Deterministic document build: JSON Resume -> HTML -> PDF bytes (WeasyPrint)."""
 from __future__ import annotations
 
 import re
@@ -31,11 +31,18 @@ _env.filters["ym"] = _ym
 
 
 def slug(text: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:60]
+    return re.sub(r"[^a-z0-9]+", "-", (text or "").lower()).strip("-")[:60]
+
+
+def is_student(resume: dict) -> bool:
+    label = (resume.get("basics", {}).get("label") or "").lower()
+    work = resume.get("work") or []
+    return ("student" in label or "intern" in label or not work
+            or all("intern" in (w.get("position") or "").lower() for w in work))
 
 
 def resume_html(resume: dict) -> str:
-    return _env.get_template("resume.html.j2").render(r=resume)
+    return _env.get_template("resume.html.j2").render(r=resume, student=is_student(resume))
 
 
 def cover_letter_html(resume: dict, job: dict, letter: str) -> str:
@@ -44,31 +51,23 @@ def cover_letter_html(resume: dict, job: dict, letter: str) -> str:
     )
 
 
-def to_pdf(html: str, out: Path) -> Path | None:
-    """Write a PDF if WeasyPrint (and its native libs) are available."""
+def to_pdf(html: str) -> bytes | None:
+    """PDF bytes, or None if WeasyPrint's native libraries are missing."""
     try:
         from weasyprint import HTML
     except (ImportError, OSError):
         return None
-    out.parent.mkdir(parents=True, exist_ok=True)
-    HTML(string=html).write_pdf(str(out))
-    return out
+    return HTML(string=html).write_pdf()
 
 
-def build(resume: dict, job: dict, letter: str, out_dir: Path) -> dict:
-    name = slug(resume["basics"]["name"])
-    folder = out_dir / f"{job['id']:05d}-{slug(job['company'])}-{slug(job['title'])}"
-    folder.mkdir(parents=True, exist_ok=True)
+def pdf_filename(resume: dict, kind: str = "resume") -> str:
+    return f"{slug(resume['basics']['name'])}-{kind}.pdf"
+
+
+def build(resume: dict, job: dict, letter: str) -> dict:
     r_html = resume_html(resume)
-    c_html = cover_letter_html(resume, job, letter)
-    (folder / "resume.html").write_text(r_html)
-    (folder / "cover_letter.html").write_text(c_html)
-    (folder / "cover_letter.txt").write_text(letter)
-    resume_pdf = to_pdf(r_html, folder / f"{name}-resume.pdf")
-    cover_pdf = to_pdf(c_html, folder / f"{name}-cover-letter.pdf")
     return {
-        "folder": str(folder),
-        "resume_html": str(folder / "resume.html"),
-        "resume_pdf": str(resume_pdf) if resume_pdf else None,
-        "cover_pdf": str(cover_pdf) if cover_pdf else None,
+        "resume_html": r_html,
+        "resume_pdf": to_pdf(r_html),
+        "cover_pdf": to_pdf(cover_letter_html(resume, job, letter)),
     }

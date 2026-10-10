@@ -7,5 +7,7 @@ dnspython==2.9.0
 pydantic==2.14.0
 PyYAML==6.0.3
 weasyprint==70.0
+psycopg[binary]==3.2.13
+pypdf==6.20.0
 pytest==9.1.1
 respx==0.23.1

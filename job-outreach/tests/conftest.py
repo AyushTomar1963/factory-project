@@ -1,12 +1,14 @@
 import json
+import os
 from pathlib import Path
 
 import pytest
 
-from jobhunt.config import Company, Secrets, Settings
+from jobhunt.config import Secrets, Settings, Targeting
 from jobhunt.db import DB
 
 ROOT = Path(__file__).resolve().parent.parent
+APIFY = "https://api.apify.com/v2/acts"
 
 
 @pytest.fixture
@@ -17,51 +19,61 @@ def master() -> dict:
 @pytest.fixture
 def settings(tmp_path) -> Settings:
     s = Settings(
-        companies=[
-            Company(name="Acme", domain="acme.com", ats="greenhouse", board="acme"),
-            Company(name="Globex", domain="globex.com", ats="lever", board="globex"),
-        ],
+        targeting=Targeting(
+            seasons=["Summer 2027", "Winter 2026"], roles=["Backend Intern"], locations=[],
+            companies=["Acme, acme.com"], sources=["hiring_posts", "linkedin_jobs", "companies"],
+        ),
         secrets=Secrets(
             sender_name="Jane Doe", sender_email="jane@janedoe-careers.com",
             public_base_url="https://jobs.example.com", unsubscribe_secret="test-secret",
-            db_path=str(tmp_path / "t.db"), output_dir=str(tmp_path / "out"),
+            apify_token="apify-test", db_path=str(tmp_path / "t.db"),
         ),
         base_dir=ROOT,
     )
-    s.search.title_include = ["engineer"]
-    s.search.locations = []
-    s.search.min_match_score = 0.2
     s.outreach.min_delay_seconds = 0
     s.outreach.max_delay_seconds = 0
     return s
 
 
+TEST_PG = os.environ.get("TEST_DATABASE_URL", "")
+TABLES = ("leads", "contacts", "documents", "outreach", "suppression", "send_log", "kv")
+
+
+def reset_pg() -> None:
+    """Run the suite against Postgres too: TEST_DATABASE_URL=postgresql://... pytest"""
+    import psycopg
+
+    with psycopg.connect(TEST_PG, autocommit=True) as conn:
+        conn.execute("DROP TABLE IF EXISTS " + ", ".join(TABLES))
+
+
 @pytest.fixture
 def db(settings) -> DB:
-    return DB(settings.path(settings.secrets.db_path))
+    if TEST_PG:
+        reset_pg()
+        settings.secrets.database_url = TEST_PG
+    return DB(settings.db_target)
 
 
-GREENHOUSE_JOBS = {
-    "jobs": [
-        {
-            "id": 101, "title": "Senior Backend Engineer", "absolute_url": "https://boards.greenhouse.io/acme/jobs/101",
-            "location": {"name": "New York, NY"}, "departments": [{"name": "Engineering"}],
-            "updated_at": "2026-10-01T00:00:00Z",
-            "content": "&lt;p&gt;We use &lt;b&gt;Python&lt;/b&gt;, Go, PostgreSQL, Kafka and Kubernetes on AWS.&lt;/p&gt;"
-                       "&lt;ul&gt;&lt;li&gt;Experience with Rust is a plus&lt;/li&gt;&lt;/ul&gt;",
-        },
-        {
-            "id": 102, "title": "Account Executive", "absolute_url": "https://boards.greenhouse.io/acme/jobs/102",
-            "location": {"name": "Remote"}, "departments": [], "content": "&lt;p&gt;Sell things.&lt;/p&gt;",
-        },
-    ]
-}
+# Shapes returned by the Apify actors (apify~google-search-scraper, curious_coder~linkedin-jobs-scraper).
+GOOGLE_RESULTS = [{
+    "searchQuery": {"term": 'site:linkedin.com/posts hiring intern "Summer 2027" "Backend"'},
+    "organicResults": [
+        {"title": "Priya Shah on LinkedIn: We're hiring backend interns for Summer 2027! Python, PostgreSQL",
+         "url": "https://www.linkedin.com/posts/priya-shah-12ab_hiring-interns-activity-7100?utm=x",
+         "description": "We're hiring backend interns for Summer 2027 at Globex. DM me with your resume.",
+         "date": "2026-09-30"},
+        {"title": "Dan on LinkedIn: Our team is growing",
+         "url": "https://www.linkedin.com/posts/dan-k_growth-activity-7101",
+         "description": "We're hiring senior engineers."},
+        {"title": "Not a post", "url": "https://example.com/blog", "description": "intern"},
+    ],
+}]
 
-LEVER_JOBS = [
-    {
-        "id": "abc-123", "text": "Platform Engineer", "hostedUrl": "https://jobs.lever.co/globex/abc-123",
-        "categories": {"location": "Remote", "team": "Infrastructure"}, "createdAt": 1790000000000,
-        "descriptionPlain": "Own our Terraform and Kubernetes platform.",
-        "lists": [{"text": "Requirements", "content": "<li>Docker</li><li>AWS</li><li>Java</li>"}],
-    }
+LINKEDIN_JOBS = [
+    {"id": "4001", "title": "Software Engineering Intern (Summer 2027)", "companyName": "Initech",
+     "companyWebsite": "https://www.initech.io", "location": "Remote", "link": "https://www.linkedin.com/jobs/view/4001",
+     "descriptionText": "Backend internship. Python, Go and Docker.", "postedAt": "2026-10-01"},
+    {"id": "4002", "title": "Senior Staff Engineer", "companyName": "Initech", "link": "https://www.linkedin.com/jobs/view/4002",
+     "descriptionText": "10 years experience."},
 ]

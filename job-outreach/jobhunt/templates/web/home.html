@@ -1,50 +1,88 @@
 {% extends "base.html" %}
 {% block body %}
 <h1>Overview</h1>
-<p class="sub">{{ companies|length }} companies watched across Greenhouse, Lever, Ashby and Workday.</p>
+<p class="sub">Hunting <b>{{ t.seasons | join(' / ') or 'internship' }}</b> internships for
+  {{ t.roles | join(', ') }}{% if t.locations %} in {{ t.locations | join(', ') }}{% endif %}.
+  Leads come from people posting about hiring interns, LinkedIn internship listings and your own company list.
+  Each one gets a tailored resume and a direct email.</p>
+
+{% set missing = setup | rejectattr('ok') | list %}
+{% if missing %}
+<div class="card">
+  <h2>Finish setup ({{ setup|length - missing|length }}/{{ setup|length }})</h2>
+  <table>
+  {% for s in setup %}
+    <tr><td style="width:70px">{% if s.ok %}<span class="ok-t">done</span>{% else %}<span class="warn-t">todo</span>{% endif %}</td>
+        <td><b>{{ s.name }}</b></td>
+        <td class="small muted">{% if not s.ok %}{% if s.href %}<a href="{{ s.href }}">{{ s.how }}</a>{% else %}{{ s.how }}{% endif %}{% endif %}</td></tr>
+  {% endfor %}
+  </table>
+  <p class="small muted" style="margin:10px 0 0">API keys are set as environment variables on the server (Render dashboard &rarr; Environment).</p>
+</div>
+{% endif %}
 
 <div class="grid g4">
-  <div class="card stat"><div class="n">{{ stats.jobs.get('shortlisted', 0) }}</div><div class="l">Shortlisted jobs</div></div>
-  <div class="card stat"><div class="n">{{ stats.jobs.get('tailored', 0) + stats.jobs.get('contacted', 0) }}</div><div class="l">Tailored</div></div>
-  <div class="card stat"><div class="n">{{ stats.contacts_with_email }}<span class="muted small"> / {{ stats.contacts }}</span></div><div class="l">Contacts with email</div></div>
+  <div class="card stat"><div class="n">{{ stats.leads.values()|sum }}</div><div class="l">Internship leads</div></div>
+  <div class="card stat"><div class="n">{{ stats.contacts_with_email }}<span class="muted small"> / {{ stats.contacts }}</span></div><div class="l">People with email</div></div>
   <div class="card stat"><div class="n">{{ stats.outreach.get('email:sent', 0) }}</div><div class="l">Emails sent</div></div>
+  <div class="card stat"><div class="n">{{ stats.replies }}</div><div class="l">Replies</div></div>
 </div>
 
-{% if stage.running %}
-<meta http-equiv="refresh" content="4;url=/">
-<div class="warnbox" style="margin-bottom:18px">Running <b>{{ stage.running }}</b>&hellip; this page refreshes automatically.</div>
+{% if stage.running or auto_status.running %}
+<meta http-equiv="refresh" content="5;url=/">
+<div class="warnbox" style="margin-bottom:18px">Running <b>{{ stage.running or ('autopilot: ' ~ (auto_status.step or 'starting')) }}</b>&hellip; this page refreshes automatically.</div>
 {% elif stage.result %}
 <div class="flash">Last run: {{ stage.result }}</div>
 {% endif %}
 
 <div class="card">
-  <h2>Pipeline</h2>
-  <div class="row">
-    {% set busy = 'disabled' if stage.running %}
-    <form method="post" action="/actions/discover"><button class="btn primary" {{ busy }}>1. Discover jobs</button></form>
-    <form method="post" action="/actions/enrich"><button class="btn" {{ 'disabled title="set APOLLO_API_KEY or HUNTER_API_KEY"'|safe if not enrich else busy }}>2. Find hiring managers</button></form>
-    <form method="post" action="/actions/tailor"><button class="btn" {{ busy }}>3. Tailor documents (10)</button></form>
-    <form method="post" action="/actions/queue"><button class="btn" {{ busy }}>4. Draft outreach</button></form>
-    <a class="btn ok" href="/outreach">5. Review &amp; approve</a>
+  <div class="spread">
+    <h2>Auto emailer</h2>
+    <span class="pill {{ 'sent' if t.auto_send else 'draft' }}">auto-send {{ 'ON' if t.auto_send else 'OFF' }}</span>
   </div>
-  <p class="muted small" style="margin:12px 0 0">
-    Tailoring engine: <b>{{ 'LLM' if llm else 'offline deterministic' }}</b>.
-    Enrichment: <b>{{ 'configured' if enrich else 'not configured' }}</b>.
-    Only approved emails are ever sent, from <a href="/sending">Sending</a> or <code>jobhunt send --live</code>.
+  <p class="small muted" style="margin-top:0">
+    Every {{ t.cycle_every_hours }}h it finds new leads, finds who to email, crafts up to {{ t.tailor_per_cycle }} tailored resumes and drafts emails.
+    Each tick sends up to {{ t.per_tick }} emails{% if t.followups_enabled %} and one follow-up after {{ t.followup_after_days }} days with no reply{% endif %}.
+    {% if not t.auto_send %}Auto-send is off, so drafts wait for you on <a href="/outreach">Emails</a>. Turn it on in <a href="/settings">Targeting &amp; autopilot</a>.{% endif %}
   </p>
+  <div class="row">
+    {% set busy = 'disabled' if stage.running or auto_status.running %}
+    <form method="post" action="/actions/cycle"><button class="btn primary" {{ busy }}>Run full cycle now</button></form>
+    <form method="post" action="/actions/tick"><button class="btn" {{ busy }}>Tick (send + follow-ups)</button></form>
+    <span class="small muted">Last cycle: {{ auto.last_cycle | when or 'never' }} &middot; last tick: {{ auto.last_tick | when or 'never' }}</span>
+  </div>
+  {% if auto.history %}
+  <details style="margin-top:10px"><summary class="small">Recent autopilot runs</summary>
+    {% for h in auto.history[:5] %}<div class="small" style="margin-top:6px"><b>{{ h.at | when }}</b><pre class="desc small">{{ h.lines | join("\n") }}</pre></div>{% endfor %}
+  </details>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Step by step (manual)</h2>
+  <div class="row">
+    {% set busy = 'disabled' if stage.running or auto_status.running %}
+    <form method="post" action="/actions/discover"><button class="btn" {{ busy }}>1. Find internship leads</button></form>
+    <form method="post" action="/actions/enrich"><button class="btn" {{ busy }}>2. Find people + emails</button></form>
+    <form method="post" action="/actions/tailor"><button class="btn" {{ busy }}>3. Craft resumes (10)</button></form>
+    <form method="post" action="/actions/queue"><button class="btn" {{ busy }}>4. Draft emails</button></form>
+    <a class="btn ok" href="/outreach">5. Review &amp; approve</a>
+    <form method="post" action="/actions/followups"><button class="btn" {{ busy }}>Queue follow-ups</button></form>
+  </div>
 </div>
 
 <div class="grid g2">
   <div class="card">
-    <div class="spread"><h2>Best matches</h2><a href="/jobs" class="small">all jobs</a></div>
+    <div class="spread"><h2>Latest leads</h2><a href="/leads" class="small">all leads</a></div>
     {% if top %}
     <table>
-      {% for j in top %}
-      <tr><td><a href="/jobs/{{ j.id }}">{{ j.title }}</a><div class="muted small">{{ j.company }} &middot; {{ j.location or 'n/a' }}</div></td>
-          <td style="text-align:right"><span class="score">{{ (j.match_score * 100)|round|int }}%</span><br><span class="pill {{ j.status }}">{{ j.status }}</span></td></tr>
+      {% for l in top %}
+      <tr><td><a href="/leads/{{ l.id }}">{{ l.title }}</a>
+            <div class="muted small">{{ l.company or l.poster_name or 'unknown company' }}{% if l.season %} &middot; {{ l.season }}{% endif %} &middot; {{ l.source | replace('_', ' ') }}</div></td>
+          <td style="text-align:right"><span class="pill {{ l.status }}">{{ l.status | replace('_', ' ') }}</span></td></tr>
       {% endfor %}
     </table>
-    {% else %}<p class="muted">No shortlisted jobs yet. Run discovery.</p>{% endif %}
+    {% else %}<p class="muted">No leads yet. Set your targeting, then run a cycle.</p>{% endif %}
   </div>
   <div class="card">
     <h2>Sending budget</h2>
@@ -56,7 +94,7 @@
       {% endif %}
       <a class="btn sm" href="/sending?check=1">Check SPF / DKIM / DMARC</a>
     {% else %}
-      <p class="muted">Set <code>SENDER_EMAIL</code> and SMTP settings in <code>.env</code> to enable sending.</p>
+      <p class="muted">Set <code>SENDER_EMAIL</code> and SMTP settings to enable sending.</p>
     {% endif %}
   </div>
 </div>
