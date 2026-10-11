@@ -166,7 +166,7 @@ export default function SendingPage() {
                 ))}
               </ul>
             ) : check ? (
-              <p className="text-sm text-amber-700">Set SENDER_DOMAIN on Render to check it.</p>
+              <p className="text-sm text-amber-700">Set SENDER_EMAIL on Render to check its domain.</p>
             ) : (
               <p className="text-sm text-slate-500">Checks SPF, DKIM and DMARC for your sender domain. Sending is blocked until the required ones pass.</p>
             )}
