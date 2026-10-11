@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check, Circle, Clock, Copy, ExternalLink, Save } from "lucide-react";
-import { api, type ActionResult, type SetupItem, type Targeting } from "../api";
+import { api, API_ORIGIN, type ActionResult, type SetupItem, type Targeting } from "../api";
 import { Button, Card, Chip, cx, PageHeader, Spinner, Toggle, useApi, useToast } from "../ui";
 
 type SettingsData = {
@@ -48,7 +48,7 @@ export default function TargetingPage() {
   if (!data || !t) return <Spinner />;
   const set = <K extends keyof Targeting>(k: K, v: Targeting[K]) => setT({ ...t, [k]: v });
   const dirty = JSON.stringify(t) !== JSON.stringify(data.targeting);
-  const cronUrl = `${window.location.origin}/cron/tick?key=YOUR_CRON_SECRET`;
+  const cronUrl = `${API_ORIGIN}/cron/tick?key=YOUR_CRON_SECRET`;
 
   const save = async () => {
     setSaving(true);

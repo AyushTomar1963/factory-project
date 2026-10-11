@@ -7,7 +7,7 @@ import { ToastProvider } from "./ui";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "")}>
       <ToastProvider>
         <App />
       </ToastProvider>

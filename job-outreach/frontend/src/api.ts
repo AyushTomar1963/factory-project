@@ -3,6 +3,7 @@
 // Set VITE_API_BASE to call a backend URL directly instead (the backend allows *.vercel.app).
 const BASE = (import.meta.env.VITE_API_BASE as string | undefined)?.replace(/\/$/, "") ?? "";
 const TOKEN_KEY = "jobhunt_token";
+export const API_ORIGIN = BASE || window.location.origin;
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {

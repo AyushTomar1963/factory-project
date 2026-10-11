@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:pages": "VITE_BASE=${VITE_BASE:-/factory-project/} VITE_API_BASE=${VITE_API_BASE:-https://jobhunt-outreach.onrender.com} npm run build && cp dist/index.html dist/404.html && touch dist/.nojekyll"
   },
   "dependencies": {
     "lucide-react": "^1.55.0",

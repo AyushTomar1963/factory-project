@@ -66,11 +66,12 @@ async def basic_auth(request: Request, call_next):
     return await call_next(request)
 
 
-# The Vercel frontend normally calls /api through a same-origin rewrite, so CORS
-# never comes into play; this covers calling the Render URL directly instead.
+# The Vercel frontend calls /api through a same-origin rewrite, so CORS never
+# comes into play there; GitHub Pages (or VITE_API_BASE) calls this host directly.
+# Auth is a Bearer token, not a cookie, so allowing these origins exposes nothing.
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=os.environ.get("CORS_ORIGIN_REGEX", r"https://[\w.-]+\.vercel\.app|http://localhost(:\d+)?"),
+    allow_origin_regex=os.environ.get("CORS_ORIGIN_REGEX", r"https://[\w.-]+\.vercel\.app|https://[\w-]+\.github\.io|http://localhost(:\d+)?"),
     allow_methods=["*"],
     allow_headers=["Authorization", "Content-Type"],
     expose_headers=["Content-Disposition"],

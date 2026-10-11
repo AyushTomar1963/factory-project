@@ -95,6 +95,10 @@ def test_api_auth_and_cors(web, monkeypatch):  # noqa: F811
     assert client.get("/api/me", headers={"Authorization": "Bearer wrong"}).status_code == 401
     assert client.get("/api/me", headers={"Authorization": "Bearer pw"}).json()["ok"]
 
+    gh = client.options("/api/me", headers={"Origin": "https://ayushtomar1963.github.io",
+                                            "Access-Control-Request-Method": "GET"})
+    assert gh.headers["access-control-allow-origin"] == "https://ayushtomar1963.github.io"
+
     origin = "https://jobhunt-outreach.vercel.app"
     pre = client.options("/api/me", headers={"Origin": origin, "Access-Control-Request-Method": "GET",
                                               "Access-Control-Request-Headers": "authorization"})
