@@ -160,6 +160,16 @@ npx vercel deploy --prod                       # set the Vercel root directory t
 If your Render URL differs from `jobhunt-outreach.onrender.com`, change it in
 `frontend/vercel.json`.
 
+### GitHub Pages
+
+`.github/workflows/jobhunt-pages.yml` builds the same app with
+`npm run build:pages` on every push and publishes it to the
+`cursor/gh-pages-655c` branch. Enable it once in **Settings → Pages → Deploy
+from a branch → `cursor/gh-pages-655c` / (root)**; the site is then
+`https://<user>.github.io/<repo>/`. Pages can't proxy, so this build calls the
+Render API directly (`VITE_API_BASE`), which the backend's CORS allows for
+`*.github.io`.
+
 ## Tests
 
 ```bash
