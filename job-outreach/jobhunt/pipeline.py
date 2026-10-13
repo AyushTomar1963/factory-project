@@ -11,7 +11,7 @@ from . import keywords, render, resume as resume_mod, sources, tailor as tailor_
 from .config import Settings, Targeting, effective_targeting
 from .db import DB, now_iso
 from .enrich import Apollo, Hunter, enrich_lead
-from .llm import LLMClient
+from .llm import LLMClient, shared_limiter
 
 
 @dataclass
@@ -41,9 +41,16 @@ def load_master(settings: Settings, db: DB | None = None) -> dict:
     return resume_mod.load(settings.path(settings.candidate.resume))
 
 
-def make_llm(settings: Settings) -> LLMClient | None:
+def make_llm(settings: Settings, db: DB | None = None) -> LLMClient | None:
+    """`db` persists the daily request count so free-tier budgets survive restarts."""
     s = settings.secrets
-    return LLMClient(s.llm_base_url, s.llm_api_key, s.llm_model) if s.llm_api_key else None
+    if not s.llm_api_key:
+        return None
+    return LLMClient(
+        s.llm_base_url, s.llm_api_key, s.llm_model,
+        limiter=shared_limiter(s.llm_base_url, s.llm_api_key, s.llm_rpm, s.llm_rpd),
+        store=db, reasoning_effort=s.llm_reasoning_effort, max_output_tokens=s.llm_max_output_tokens,
+    )
 
 
 def targeting(settings: Settings, db: DB) -> Targeting:
@@ -158,6 +165,10 @@ def run_tailor(settings: Settings, db: DB, master: dict, llm: LLMClient | None =
         )
         ids = [r["id"] for r in rows]
     for lead_id in ids[:limit] if limit else ids:
+        if llm is not None and llm.remaining_today() <= 0:
+            # Leave the rest for tomorrow rather than tailoring them without the LLM.
+            res.errors.append("daily LLM budget used up; remaining leads will be tailored after midnight Pacific")
+            break
         out = tailor_lead(settings, db, master, lead_id, llm)
         res.bump("tailored")
         if out["result"].violations:

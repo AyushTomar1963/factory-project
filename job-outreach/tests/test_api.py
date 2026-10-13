@@ -52,7 +52,7 @@ def test_api_full_flow(web):  # noqa: F811
     assert client.get("/api/outreach?status=approved").json()["rows"][0]["subject"] == "New subject"
 
     r = client.post("/api/actions/send").json()
-    assert not r["ok"] and "SMTP_HOST" in r["message"]
+    assert not r["ok"] and "SMTP_USER" in r["message"]
     s = client.get("/api/sending").json()
     assert s["approved"] == 1 and s["allowance"]["cap"] == 5
     assert client.post("/api/sending/suppress", json={"email": "x@y.com"}).json()["ok"]

@@ -10,8 +10,8 @@
     <form method="post" action="/resume/import" enctype="multipart/form-data">
       <div class="field"><b>Upload a PDF (or .txt)</b><input type="file" name="file" accept=".pdf,.txt,.md"></div>
       <div class="field"><b>or paste the text</b><textarea name="text" style="min-height:140px" placeholder="Paste your resume here"></textarea></div>
-      <button class="btn primary" {{ 'disabled title="set LLM_API_KEY"'|safe if not llm }}>Import</button>
-      {% if not llm %}<p class="small warn-t">Importing needs LLM_API_KEY. You can still paste JSON Resume into the editor.</p>{% endif %}
+      <button class="btn primary" {{ 'disabled title="set GEMINI_API_KEY"'|safe if not llm }}>Import</button>
+      {% if not llm %}<p class="small warn-t">Importing needs GEMINI_API_KEY. You can still paste JSON Resume into the editor.</p>{% endif %}
     </form>
     {% if warnings %}
     <div class="warnbox small" style="margin-top:12px"><b>Check these:</b> the import produced items that aren't in your original text, so they may be wrong. Fix or delete them in the editor.

@@ -140,7 +140,7 @@ export default function OverviewPage() {
               </>
             )
           ) : (
-            <Empty icon={<Inbox className="size-5" />} title="Sending not configured">Set SMTP_* and SENDER_EMAIL on the server.</Empty>
+            <Empty icon={<Inbox className="size-5" />} title="Sending not configured">Set SMTP_USER and SMTP_PASSWORD (a Gmail App Password) on the server.</Empty>
           )}
           <Link to="/sending" className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline">
             Deliverability & replies <ArrowRight className="size-4" />

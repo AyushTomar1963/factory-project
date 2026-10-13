@@ -201,7 +201,7 @@ async def resume_import(file: UploadFile | None = File(None), text: str = Form("
         if file is not None and file.filename:
             data = await file.read()
             text = crafter.pdf_text(data) if file.filename.lower().endswith(".pdf") else data.decode("utf-8", "replace")
-        parsed, warnings = crafter.import_text(text, pipeline.make_llm(core.settings))
+        parsed, warnings = crafter.import_text(text, pipeline.make_llm(core.settings, core.db))
     except crafter.CraftError as exc:
         return {"ok": False, "message": str(exc)}
     core.db.kv_set("master_resume", parsed)

@@ -43,7 +43,7 @@ export default function SendingPage() {
     <>
       <PageHeader
         title="Sending"
-        subtitle={data.sender ? <>Emails go out from <b className="text-slate-700">{data.sender}</b>, throttled and warmed up so they don't hurt your domain.</> : "Set SMTP and SENDER_EMAIL on Render to start sending."}
+        subtitle={data.sender ? <>Emails go out from <b className="text-slate-700">{data.sender}</b>, throttled and warmed up so they don't hurt your domain.</> : "Set SMTP_USER and SMTP_PASSWORD (a Gmail App Password) on Render to start sending."}
         actions={
           <Button
             variant="primary"
@@ -166,7 +166,7 @@ export default function SendingPage() {
                 ))}
               </ul>
             ) : check ? (
-              <p className="text-sm text-amber-700">Set SENDER_EMAIL on Render to check its domain.</p>
+              <p className="text-sm text-amber-700">Set SMTP_USER on Render to check its domain.</p>
             ) : (
               <p className="text-sm text-slate-500">Checks SPF, DKIM and DMARC for your sender domain. Sending is blocked until the required ones pass.</p>
             )}

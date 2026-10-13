@@ -1,4 +1,7 @@
-"""Low-volume, authenticated cold-email dispatch.
+"""Low-volume, authenticated cold-email dispatch over plain SMTP.
+
+Works with a Gmail App Password (smtp.gmail.com, no OAuth tokens to refresh)
+or any other SMTP server: port 587 uses STARTTLS, port 465 implicit TLS.
 
 Safety rails, all enforced here rather than left to the caller:
   * only approved outreach rows are sent (approved by you, or by autopilot
@@ -17,6 +20,7 @@ import base64
 import email as email_lib
 import hashlib
 import hmac
+import html
 import imaplib
 import json
 import mimetypes
@@ -89,11 +93,45 @@ def build_message(settings: Settings, to_email: str, to_name: str, subject: str,
         msg["In-Reply-To"] = in_reply_to
         msg["References"] = in_reply_to
     msg.set_content(body + footer)
+    msg.add_alternative(_html_body(body, unsub_url, s.sender_postal_address), subtype="html")
     for filename, data in attachments or []:
         ctype = mimetypes.guess_type(filename)[0] or "application/octet-stream"
         maintype, subtype = ctype.split("/", 1)
         msg.add_attachment(bytes(data), maintype=maintype, subtype=subtype, filename=filename)
     return msg
+
+
+_URL_RE = re.compile(r"https?://[^\s<>\"']+")
+
+
+def _linkify(text: str) -> str:
+    out, last = [], 0
+    for m in _URL_RE.finditer(text):
+        out.append(html.escape(text[last:m.start()]))
+        url = m.group(0).rstrip(".,);")
+        out.append(f'<a href="{html.escape(url)}" style="color:#4f46e5">{html.escape(url)}</a>')
+        out.append(html.escape(m.group(0)[len(url):]))
+        last = m.end()
+    out.append(html.escape(text[last:]))
+    return "".join(out)
+
+
+def _html_body(body: str, unsub_url: str, postal: str) -> str:
+    """A plain-looking HTML part: personal email, not a newsletter template."""
+    paras = [p for p in re.split(r"\n\s*\n", body.strip()) if p.strip()]
+    content = "".join(
+        f'<p style="margin:0 0 14px">{_linkify(p).replace(chr(10), "<br>")}</p>' for p in paras)
+    foot = (f'If you\'d rather not hear from me again, reply "no thanks" or '
+            f'<a href="{html.escape(unsub_url)}" style="color:#6b7280">unsubscribe</a>.')
+    if postal:
+        foot += f"<br>{html.escape(postal)}"
+    return (
+        '<!doctype html><html><body style="margin:0;padding:0">'
+        '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;'
+        'font-size:15px;line-height:1.55;color:#111827;max-width:600px">'
+        f'{content}<p style="margin:24px 0 0;font-size:12px;color:#6b7280">{foot}</p>'
+        "</div></body></html>"
+    )
 
 
 # ---------------------------------------------------------------- transports
@@ -118,28 +156,69 @@ class DryRunTransport:
         pass
 
 
+class SMTPAuthError(RuntimeError):
+    pass
+
+
 class SMTPTransport:
-    def __init__(self, settings: Settings):
-        s = settings.secrets
-        if not (s.smtp_host and s.sender_email):
-            raise RuntimeError("SMTP_HOST and SENDER_EMAIL must be set for live sending")
+    """One connection per batch, reopened if the server drops it mid-batch
+    (Gmail closes idle connections during the randomised gaps)."""
+
+    def __init__(self, settings: Settings, smtp_cls=smtplib.SMTP, smtp_ssl_cls=smtplib.SMTP_SSL):
+        self.s = settings.secrets
+        if not self.s.smtp_ready:
+            raise RuntimeError("SMTP_USER, SMTP_PASSWORD and SENDER_EMAIL must be set for live sending")
+        self.smtp_cls, self.smtp_ssl_cls = smtp_cls, smtp_ssl_cls
+        self.smtp: smtplib.SMTP | None = None
+        self._connect()
+
+    def _connect(self) -> None:
+        s = self.s
         ctx = ssl.create_default_context()
         if s.smtp_use_ssl:
-            self.smtp = smtplib.SMTP_SSL(s.smtp_host, s.smtp_port, context=ctx, timeout=60)
+            conn = self.smtp_ssl_cls(s.smtp_host, s.smtp_port, context=ctx, timeout=60)
         else:
-            self.smtp = smtplib.SMTP(s.smtp_host, s.smtp_port, timeout=60)
-            self.smtp.starttls(context=ctx)
-        if s.smtp_username:
-            self.smtp.login(s.smtp_username, s.smtp_password)
+            conn = self.smtp_cls(s.smtp_host, s.smtp_port, timeout=60)
+            conn.ehlo()
+            conn.starttls(context=ctx)
+            conn.ehlo()
+        try:
+            conn.login(s.smtp_username, s.smtp_password)
+        except smtplib.SMTPAuthenticationError as exc:
+            _quit(conn)
+            hint = (" Gmail needs a 16-character App Password (myaccount.google.com/apppasswords, "
+                    "2-Step Verification must be on), not your normal password.") if s.uses_gmail else ""
+            raise SMTPAuthError(f"SMTP login failed for {s.smtp_username}: {exc.smtp_code}.{hint}") from exc
+        self.smtp = conn
 
     def send(self, msg: EmailMessage) -> None:
-        self.smtp.send_message(msg)
+        try:
+            self.smtp.send_message(msg)
+        except smtplib.SMTPServerDisconnected:
+            self._connect()
+            self.smtp.send_message(msg)
 
     def close(self) -> None:
-        try:
-            self.smtp.quit()
-        except smtplib.SMTPException:
-            pass
+        if self.smtp is not None:
+            _quit(self.smtp)
+            self.smtp = None
+
+
+def _quit(conn: smtplib.SMTP) -> None:
+    try:
+        conn.quit()
+    except (smtplib.SMTPException, OSError):
+        pass
+
+
+_QUOTA_RE = re.compile(r"5\.4\.5|4\.7\.0|quota|rate limit|too many|sending limit", re.IGNORECASE)
+
+
+def _is_quota_error(exc: smtplib.SMTPException) -> bool:
+    """Provider-side sending limits (e.g. Gmail's daily cap): stop the batch, don't fail the rows."""
+    code = getattr(exc, "smtp_code", 0) or 0
+    text = str(getattr(exc, "smtp_error", b"") or exc)
+    return code in (421, 450, 451, 452, 454) or bool(_QUOTA_RE.search(text))
 
 
 # ---------------------------------------------------------------- throttle
@@ -198,13 +277,14 @@ def live_blockers(settings: Settings) -> list[str]:
 
     s = settings.secrets
     problems = []
-    if not (s.smtp_host and s.sender_email):
-        problems.append("SMTP_HOST and SENDER_EMAIL must be set")
+    if not s.smtp_ready:
+        problems.append("set SMTP_USER and SMTP_PASSWORD (a Gmail App Password, or your SMTP server's login)"
+                        + ("" if s.sender_email else " and SENDER_EMAIL"))
     if s.unsubscribe_secret == "dev-only-secret":
         problems.append("set UNSUBSCRIBE_SECRET (shared by whatever sends and whatever serves /u/)")
     if s.public_base_url.startswith(("http://localhost", "http://127.")):
         problems.append("PUBLIC_BASE_URL must be publicly reachable so unsubscribe links work")
-    if settings.outreach.require_authentication and s.sender_domain:
+    if settings.outreach.require_authentication and s.sender_domain and s.smtp_ready:
         rep = deliverability.check_domain(s.sender_domain, s.dkim_selector, s.smtp_host)
         problems += [f"sender domain not authenticated: {f}" for f in rep.failures()]
     return problems
@@ -300,6 +380,16 @@ def send_approved(db: DB, settings: Settings, transport: Transport, limit: int |
                 db.suppress(email, "hard_bounce")
             summary.bounced += 1
             log(f"  bounced: {email} ({code})")
+            continue
+        except (smtplib.SMTPDataError, smtplib.SMTPSenderRefused, smtplib.SMTPResponseException) as exc:
+            if _is_quota_error(exc):
+                summary.blocked_reason = f"the SMTP server is limiting sends ({exc}); the rest stay approved for next time"
+                log(f"  stopped: {summary.blocked_reason}")
+                break
+            _log(db, domain, email, row["id"], "failed", str(exc))
+            _mark(db, row["id"], "failed", str(exc))
+            summary.failed += 1
+            log(f"  failed: {email}: {exc}")
             continue
         except (smtplib.SMTPException, OSError) as exc:
             _log(db, domain, email, row["id"], "failed", str(exc))

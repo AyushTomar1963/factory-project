@@ -183,7 +183,7 @@ def test_dashboard_flow(web):
     assert (row["status"], row["subject"], row["body"]) == ("approved", "Edited subject", "Edited body")
     assert client.get("/sending").status_code == 200
     r = client.post("/actions/send")
-    assert "Not sending" in r.text and "SMTP_HOST" in r.text
+    assert "Not sending" in r.text and "SMTP_USER" in r.text
 
 
 def test_settings_page_saves_targeting(web):
@@ -222,7 +222,7 @@ def test_resume_crafter_save_import_and_preview(web, monkeypatch, master):
                     "education": [{"institution": "State University", "area": "CS"}],
                     "skills": [{"name": "Languages", "keywords": ["Python", "Rust"]}]}
 
-    monkeypatch.setattr(pipeline, "make_llm", lambda s: FakeLLM())
+    monkeypatch.setattr(pipeline, "make_llm", lambda s, db=None: FakeLLM())
     text = "Sam Lee\nsam@uni.edu\nState University, CS\nSkills: Python"
     r = client.post("/resume/import", files={"file": ("resume.txt", text.encode(), "text/plain")})
     assert "Resume imported" in r.text and "1 item(s)" in r.text
@@ -270,3 +270,17 @@ def test_basic_auth_protects_dashboard_but_not_public_routes(web, monkeypatch):
     token = mailer.unsubscribe_token("x@acme.com", "websecret")
     assert client.get(f"/u/{token}").status_code == 200
     assert client.get("/cron/tick?key=wrong").status_code == 401, "cron uses its own secret, not basic auth"
+
+
+def test_tailor_waits_for_tomorrow_when_llm_budget_is_used(settings, db, master):
+    class SpentLLM:
+        model = "gemini"
+
+        def remaining_today(self):
+            return 0
+
+        def complete_json(self, *a, **k):
+            raise AssertionError("must not be called")
+
+    res = pipeline.run_tailor(settings, db, master, SpentLLM(), lead_ids=[1, 2])
+    assert res.counts == {} and "budget" in res.errors[0]

@@ -12,6 +12,8 @@ FREEMAIL = {
     "gmail.com", "googlemail.com", "yahoo.com", "outlook.com", "hotmail.com", "live.com",
     "aol.com", "icloud.com", "me.com", "proton.me", "protonmail.com", "gmx.com", "yandex.com",
 }
+GMAIL_DOMAINS = {"gmail.com", "googlemail.com"}
+GMAIL_SMTP_HOSTS = {"smtp.gmail.com", "smtp.googlemail.com"}
 
 
 @dataclass
@@ -50,9 +52,20 @@ def check_domain(domain: str, dkim_selector: str = "", smtp_host: str = "",
     domain = domain.lower().strip()
     rep = Report(domain)
 
+    if domain in GMAIL_DOMAINS and smtp_host.lower() in GMAIL_SMTP_HOSTS:
+        # Google signs gmail.com mail with its own DKIM key and publishes SPF and
+        # DMARC for it, but only for mail submitted through Google's servers.
+        rep.checks.append(Check("Authentication", True,
+                                "managed by Google: gmail.com mail sent via smtp.gmail.com passes SPF, DKIM and DMARC"))
+        rep.checks.append(Check("Sending volume", True,
+                                "personal Gmail allows about 500 messages a day; the warm-up keeps you far below it",
+                                required=False))
+        return rep
+
     rep.checks.append(Check(
         "Dedicated domain", domain not in FREEMAIL,
-        "free-mail domains cannot publish your SPF/DKIM/DMARC; use a dedicated outreach domain"
+        "free-mail domains only authenticate through their own servers; for Gmail set SMTP_HOST=smtp.gmail.com, "
+        "otherwise use a dedicated outreach domain"
         if domain in FREEMAIL else "custom domain",
     ))
 

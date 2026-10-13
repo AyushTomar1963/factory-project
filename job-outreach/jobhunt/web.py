@@ -104,9 +104,13 @@ def setup_status() -> list[dict]:
         {"name": "Apify (find internship leads)", "ok": bool(s.apify_token), "how": "set APIFY_TOKEN"},
         {"name": "Apollo / Hunter (find emails)", "ok": bool(s.apollo_api_key or s.hunter_api_key),
          "how": "set APOLLO_API_KEY and/or HUNTER_API_KEY"},
-        {"name": "LLM (resume + email writing)", "ok": bool(s.llm_api_key), "how": "set LLM_API_KEY (+ LLM_BASE_URL, LLM_MODEL)"},
-        {"name": "SMTP (sending)", "ok": bool(s.smtp_host and s.sender_email), "how": "set SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, SENDER_EMAIL, SENDER_NAME"},
-        {"name": "IMAP (reply detection)", "ok": bool(s.imap_host), "how": "set IMAP_HOST (login defaults to the SMTP one)"},
+        {"name": "LLM (resume + email writing)", "ok": bool(s.llm_api_key),
+         "how": "set GEMINI_API_KEY (free at aistudio.google.com/apikey)", "href": "https://aistudio.google.com/apikey"},
+        {"name": "SMTP (sending)", "ok": s.smtp_ready,
+         "how": "set SMTP_USER and SMTP_PASSWORD (a Gmail App Password), plus SENDER_NAME",
+         "href": "https://myaccount.google.com/apppasswords"},
+        {"name": "IMAP (reply detection)", "ok": bool(s.imap_host and s.imap_username),
+         "how": "automatic for Gmail; otherwise set IMAP_HOST (login defaults to the SMTP one)"},
         {"name": "Persistent database", "ok": bool(s.database_url), "how": "set DATABASE_URL (Postgres); otherwise data resets on redeploy"},
         {"name": "Cron secret (auto emailer)", "ok": bool(s.cron_secret), "how": "set CRON_SECRET and point a cron at /cron/tick"},
     ]
@@ -132,7 +136,7 @@ def home(request: Request):
 STAGES = {
     "discover": lambda m: pipeline.run_discover(settings, db, m),
     "enrich": lambda m: pipeline.run_enrich(settings, db),
-    "tailor": lambda m: pipeline.run_tailor(settings, db, m, pipeline.make_llm(settings), limit=10),
+    "tailor": lambda m: pipeline.run_tailor(settings, db, m, pipeline.make_llm(settings, db), limit=10),
     "queue": lambda m: pipeline.run_queue(settings, db, m),
     "followups": lambda m: pipeline.run_followups(settings, db, m),
 }
@@ -261,7 +265,7 @@ def enrich_one(lead_id: int) -> str:
 
 
 def tailor_one(lead_id: int) -> str:
-    out = pipeline.tailor_lead(settings, db, pipeline.load_master(settings, db), lead_id, pipeline.make_llm(settings))
+    out = pipeline.tailor_lead(settings, db, pipeline.load_master(settings, db), lead_id, pipeline.make_llm(settings, db))
     n = len(out["result"].violations)
     return f"resume crafted with {out['result'].engine}" + (f", fact guard intervened {n}x" if n else "")
 
@@ -312,7 +316,7 @@ async def resume_import(file: UploadFile | None = File(None), text: str = Form("
         if file is not None and file.filename:
             data = await file.read()
             text = crafter.pdf_text(data) if file.filename.lower().endswith(".pdf") else data.decode("utf-8", "replace")
-        resume, warnings = crafter.import_text(text, pipeline.make_llm(settings))
+        resume, warnings = crafter.import_text(text, pipeline.make_llm(settings, db))
     except crafter.CraftError as exc:
         return _back("/resume", f"Import failed: {exc}")
     db.kv_set("master_resume", resume)

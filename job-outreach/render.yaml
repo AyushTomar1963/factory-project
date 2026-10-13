@@ -30,27 +30,13 @@ services:
         sync: false
       - key: HUNTER_API_KEY
         sync: false
-      - key: LLM_API_KEY
+      - key: GEMINI_API_KEY
         sync: false
-      - key: LLM_BASE_URL
-        sync: false
-      - key: LLM_MODEL
-        sync: false
-      - key: SMTP_HOST
-        sync: false
-      - key: SMTP_PORT
-        value: "587"
-      - key: SMTP_USERNAME
+      - key: SMTP_USER
         sync: false
       - key: SMTP_PASSWORD
         sync: false
-      - key: IMAP_HOST
-        sync: false
       - key: SENDER_NAME
-        sync: false
-      - key: SENDER_EMAIL
-        sync: false
-      - key: DKIM_SELECTOR
         sync: false
       - key: SENDER_POSTAL_ADDRESS
         sync: false

@@ -51,9 +51,9 @@ def cmd_enrich(args, settings) -> int:
 
 def cmd_tailor(args, settings) -> int:
     db, master = _open(settings)
-    llm = None if args.offline else pipeline.make_llm(settings)
+    llm = None if args.offline else pipeline.make_llm(settings, db)
     if llm is None:
-        print("[tailor] using offline deterministic engine (set LLM_API_KEY for LLM rewriting)")
+        print("[tailor] using offline deterministic engine (set GEMINI_API_KEY for LLM rewriting)")
     _print_stage("tailor", pipeline.run_tailor(settings, db, master, llm, lead_ids=args.lead, limit=args.limit))
     return 0
 
@@ -92,7 +92,7 @@ def cmd_import_resume(args, settings) -> int:
             data, warnings = crafter.parse_json(path.read_text()), []
         else:
             text = crafter.pdf_text(path.read_bytes()) if path.suffix.lower() == ".pdf" else path.read_text()
-            data, warnings = crafter.import_text(text, pipeline.make_llm(settings))
+            data, warnings = crafter.import_text(text, pipeline.make_llm(settings, db))
     except crafter.CraftError as exc:
         print(f"import failed: {exc}", file=sys.stderr)
         return 1
@@ -114,7 +114,7 @@ def cmd_run(args, settings) -> int:
     db, master = _open(settings)
     _print_stage("discover", pipeline.run_discover(settings, db, master))
     _print_stage("enrich", pipeline.run_enrich(settings, db))
-    _print_stage("tailor", pipeline.run_tailor(settings, db, master, pipeline.make_llm(settings), limit=args.limit))
+    _print_stage("tailor", pipeline.run_tailor(settings, db, master, pipeline.make_llm(settings, db), limit=args.limit))
     _print_stage("queue", pipeline.run_queue(settings, db, master))
     print("Review drafts with `jobhunt review` or the web dashboard, then `jobhunt send`.")
     return 0

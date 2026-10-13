@@ -1,3 +1,4 @@
+import pytest
 import json
 import smtplib
 from datetime import datetime, timedelta, timezone
@@ -160,3 +161,83 @@ def test_inbox_replies_cancel_followups_and_bounces_suppress(settings, db):
     assert db.is_suppressed("b@acme.com") and not db.is_suppressed("a@acme.com")
     assert db.scalar("SELECT status FROM leads WHERE id=1") == "replied"
     assert mailer.process_inbox(db, [{"from": "a@acme.com", "body": "again"}]) == {"replies": 0, "bounces": 0}
+
+
+def test_message_has_html_part_with_unsubscribe_link(settings):
+    msg = mailer.build_message(settings, "ann@acme.com", "Ann", "Subj", "Hi Ann,\n\nSee https://x.dev/p <b>.",
+                               [("r.pdf", b"%PDF-1.4")])
+    html_part = msg.get_body(("html",)).get_content()
+    assert '<a href="https://x.dev/p"' in html_part and "&lt;b&gt;" in html_part
+    assert "https://jobs.example.com/u/" in html_part
+    assert msg.get_body(("plain",)) is not None
+    assert [p.get_filename() for p in msg.iter_attachments()] == ["r.pdf"]
+
+
+class FakeSMTP:
+    instances: list = []
+
+    def __init__(self, host, port, timeout=None, context=None):
+        self.host, self.port, self.calls, self.sent = host, port, [], []
+        self.drop_next = False
+        FakeSMTP.instances.append(self)
+
+    def ehlo(self):
+        self.calls.append("ehlo")
+
+    def starttls(self, context=None):
+        self.calls.append("starttls")
+
+    def login(self, user, password):
+        self.calls.append(("login", user, password))
+        if password == "wrong":
+            raise smtplib.SMTPAuthenticationError(535, b"5.7.8 Username and Password not accepted")
+
+    def send_message(self, msg):
+        if self.drop_next:
+            self.drop_next = False
+            raise smtplib.SMTPServerDisconnected("closed")
+        self.sent.append(msg)
+
+    def quit(self):
+        self.calls.append("quit")
+
+
+def _gmail(settings, password="abcdefghijklmnop", port=587, ssl_=False):
+    s = settings.secrets
+    s.smtp_host, s.smtp_port, s.smtp_use_ssl = "smtp.gmail.com", port, ssl_
+    s.smtp_username, s.smtp_password = "jane@gmail.com", password
+    return settings
+
+
+def test_smtp_starttls_login_and_reconnect(settings):
+    FakeSMTP.instances = []
+    t = mailer.SMTPTransport(_gmail(settings), smtp_cls=FakeSMTP, smtp_ssl_cls=FakeSMTP)
+    first = FakeSMTP.instances[0]
+    assert first.calls == ["ehlo", "starttls", "ehlo", ("login", "jane@gmail.com", "abcdefghijklmnop")]
+    first.drop_next = True
+    t.send(mailer.build_message(settings, "a@b.com", "A", "S", "B"))
+    assert len(FakeSMTP.instances) == 2 and len(FakeSMTP.instances[1].sent) == 1, "reconnected after a drop"
+    t.close()
+
+
+def test_smtp_ssl_on_465_and_gmail_auth_hint(settings):
+    FakeSMTP.instances = []
+    mailer.SMTPTransport(_gmail(settings, port=465, ssl_=True), smtp_cls=None, smtp_ssl_cls=FakeSMTP)
+    assert "starttls" not in FakeSMTP.instances[0].calls
+    with pytest.raises(mailer.SMTPAuthError, match="App Password"):
+        mailer.SMTPTransport(_gmail(settings, password="wrong"), smtp_cls=FakeSMTP, smtp_ssl_cls=FakeSMTP)
+
+
+def test_provider_quota_stops_batch_and_keeps_rows_approved(settings, db):
+    ids = _seed(db, ["a@acme.com", "b@acme.com", "c@acme.com"])
+
+    class QuotaTransport(FakeTransport):
+        def send(self, msg):
+            if self.sent:
+                raise smtplib.SMTPDataError(550, b"5.4.5 Daily user sending limit exceeded")
+            self.sent.append(msg)
+
+    summary = mailer.send_approved(db, settings, QuotaTransport(), log=lambda *_: None)
+    assert summary.sent == 1 and summary.failed == 0 and "limiting" in summary.blocked_reason
+    statuses = [db.one("SELECT status FROM outreach WHERE id=?", (i,))["status"] for i in ids]
+    assert statuses == ["sent", "approved", "approved"]

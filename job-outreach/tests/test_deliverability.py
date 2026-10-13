@@ -47,3 +47,10 @@ def test_duplicate_spf_fails():
     r = FakeResolver({("d.dev", "TXT"): [_TXT("v=spf1 a ~all"), _TXT("v=spf1 mx ~all")]})
     rep = deliverability.check_domain("d.dev", "s", resolver=r)
     assert any("exactly one" in f for f in rep.failures())
+
+
+def test_personal_gmail_via_google_smtp_is_authenticated():
+    rep = deliverability.check_domain("gmail.com", "", "smtp.gmail.com", resolver=FakeResolver({}))
+    assert rep.ok and rep.failures() == []
+    rep = deliverability.check_domain("gmail.com", "", "smtp.other.com", resolver=FakeResolver({}))
+    assert "Dedicated domain" in {f.split(":")[0] for f in rep.failures()}, "Gmail address via a foreign relay fails"

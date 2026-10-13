@@ -38,7 +38,7 @@ def cycle_due(state: dict, every_hours: int, now: datetime) -> bool:
 def cycle(settings: Settings, db: DB, log: Callable[[str], None]) -> None:
     t = effective_targeting(settings, db)
     master = pipeline.load_master(settings, db)
-    llm = pipeline.make_llm(settings)
+    llm = pipeline.make_llm(settings, db)
     steps = [
         ("discover", lambda: pipeline.run_discover(settings, db, master)),
         ("enrich", lambda: pipeline.run_enrich(settings, db, limit=t.tailor_per_cycle * 2)),

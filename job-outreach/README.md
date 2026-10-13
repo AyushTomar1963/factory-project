@@ -122,8 +122,14 @@ Free Render Postgres expires after 30 days. Upgrade it, or point
 |---|---|---|
 | Apify | console.apify.com → Settings → Integrations | Finding leads (pay per result) |
 | Apollo and/or Hunter | apollo.io → Settings → API; hunter.io → API | Finding emails |
-| An LLM | OpenAI, or Groq for free (`https://api.groq.com/openai/v1`, model `llama-3.3-70b-versatile`) | Importing and tailoring your resume |
-| An email account | Google Workspace, Zoho Mail, etc. on a **separate outreach domain** | Sending and reply detection |
+| Google Gemini (free) | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) → `GEMINI_API_KEY` | Importing and tailoring your resume |
+| Gmail App Password | Turn on 2-Step Verification, then [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) → `SMTP_USER` + `SMTP_PASSWORD` | Sending and reply detection |
+
+That's all sending needs: no OAuth app, no `credentials.json`, no tokens to
+refresh. Gmail's SMTP and IMAP servers are the defaults, so with just
+`SMTP_USER` and `SMTP_PASSWORD` set, emails go out through `smtp.gmail.com`
+and replies are read from `imap.gmail.com`. Any other SMTP server works too;
+see [Environment variables](#environment-variables).
 
 Add each key on the Render service under **Environment** (names are in
 [Environment variables](#environment-variables)). Set `PUBLIC_BASE_URL` to
@@ -179,11 +185,16 @@ All of these live on the backend (Render). The frontend never sees them. See
 | `DATABASE_URL` | when hosted | Postgres connection string |
 | `APIFY_TOKEN` | yes | Lead discovery |
 | `APOLLO_API_KEY` / `HUNTER_API_KEY` | at least one | Finding emails |
-| `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` | recommended | Any OpenAI-compatible API. Without it, tailoring uses a simpler built-in engine and resume import is disabled |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_USE_SSL` | to send | Your outreach mailbox |
-| `SENDER_EMAIL`, `SENDER_NAME` | to send | The From address. Its domain is the one checked for SPF/DKIM/DMARC |
-| `DKIM_SELECTOR` | to send | Your provider's DKIM selector (Google uses `google`) |
-| `IMAP_HOST` (+ `IMAP_USERNAME`, `IMAP_PASSWORD`) | recommended | Reply and bounce detection. Login defaults to the SMTP credentials |
+| `GEMINI_API_KEY` | recommended | Google Gemini via its OpenAI-compatible endpoint. Without it, tailoring uses a simpler built-in engine and resume import is disabled |
+| `LLM_MODEL`, `LLM_BASE_URL` | optional | Defaults: `gemini-3.5-flash-lite`, `https://generativelanguage.googleapis.com/v1beta/openai/`. For another OpenAI-compatible provider set these plus `LLM_API_KEY` (or only `OPENAI_API_KEY` for OpenAI) |
+| `LLM_RPM`, `LLM_RPD` | optional | Free-tier guard rails: requests per minute (default 10) and per day (default 200). Match them to the limits AI Studio shows for your project |
+| `LLM_REASONING_EFFORT`, `LLM_MAX_OUTPUT_TOKENS` | optional | `low` (default for Gemini) keeps thinking tokens small; `0` means no output cap |
+| `SMTP_USER`, `SMTP_PASSWORD` | to send | Gmail address and App Password, or your SMTP server's login. Spaces in the App Password are ignored. `SMTP_USERNAME` also works |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USE_SSL` | optional | Default `smtp.gmail.com:587` with STARTTLS. Port 465 switches to SSL automatically |
+| `SENDER_NAME` | to send | Your name in the From line |
+| `SENDER_EMAIL` | optional | The From address; defaults to `SMTP_USER`. Its domain is the one checked for SPF/DKIM/DMARC |
+| `DKIM_SELECTOR` | custom domains | Your provider's DKIM selector (Google Workspace uses `google`). Not needed for `@gmail.com` |
+| `IMAP_HOST` (+ `IMAP_USERNAME`, `IMAP_PASSWORD`) | optional | Reply and bounce detection. Automatic for Gmail; login defaults to the SMTP credentials |
 | `SENDER_POSTAL_ADDRESS` | optional | Postal address in the email footer |
 | `CORS_ORIGIN_REGEX` | optional | Overrides which sites may call the API directly (default: `*.vercel.app`, `*.github.io`, `localhost`) |
 
@@ -282,16 +293,39 @@ Everything in the dashboard is also available from the terminal.
 Cold email that lands in spam is worse than none, so these rules are enforced
 in code, not just recommended:
 
-- Nothing is sent unless SPF, DKIM and DMARC are published for the sender domain.
+- Nothing is sent unless the sender is authenticated: SPF, DKIM and DMARC
+  published for a custom domain, or an `@gmail.com` address sent through
+  `smtp.gmail.com` (Google signs those itself).
 - Warm-up: 5 emails a day in week 1, then 10, 15 and 20, then the daily cap (25).
 - Random gaps of 20–60 seconds between messages.
 - One-click unsubscribe (RFC 8058), a visible opt-out line, and a suppression list.
 - The same person is never emailed again within 90 days, and gets at most one
   follow-up, threaded as a reply.
 - Sending pauses automatically if the bounce rate goes above 5%.
+- If the SMTP server pushes back with a rate or quota error (such as Gmail's
+  daily limit), the batch stops and the remaining emails stay approved for the
+  next run instead of being marked failed. A dropped connection is reopened.
 
-Use a separate domain just for outreach (for example `yourname-careers.com`),
-never your personal Gmail or your main domain.
+A personal Gmail account is the easiest way to start; the warm-up keeps you
+far below Gmail's roughly 500 messages a day. If you plan to send a lot, a
+separate outreach domain (for example `yourname-careers.com`) on Google
+Workspace or Zoho protects your main address.
+
+### LLM free-tier limits
+
+Gemini's free tier is limited per Google Cloud project, per minute and per
+day, with the daily count resetting at midnight Pacific. Every LLM call in the
+app goes through one shared limiter that:
+
+- spaces requests evenly (`LLM_RPM`);
+- counts requests per Pacific day in the database, so restarts don't reset it
+  (`LLM_RPD`);
+- on a 429, waits for the delay Gemini suggests and retries; if the 429 says
+  the daily quota is gone, it stops calling the LLM until tomorrow;
+- retries 5xx errors and dropped connections with backoff.
+
+When the daily budget runs out, tailoring stops and the remaining leads are
+picked up after the reset, rather than getting a lower-quality resume.
 
 ---
 

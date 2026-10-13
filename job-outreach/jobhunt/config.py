@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 import yaml
 from pydantic import BaseModel, Field
+
+from .llm import GEMINI_BASE_URL, GEMINI_MODEL, OPENAI_BASE_URL, OPENAI_MODEL, is_gemini
+
+GMAIL_SMTP_HOST = "smtp.gmail.com"
+GMAIL_SMTP_HOSTS = {"smtp.gmail.com", "smtp.googlemail.com"}
 
 
 class CandidateCfg(BaseModel):
@@ -60,15 +66,21 @@ class OutreachCfg(BaseModel):
 
 
 class Secrets(BaseModel):
-    llm_base_url: str = "https://api.openai.com/v1"
+    llm_base_url: str = GEMINI_BASE_URL
     llm_api_key: str = ""
-    llm_model: str = "gpt-4o-mini"
+    llm_model: str = GEMINI_MODEL
+    # Conservative defaults for the Gemini free tier. Google shows your
+    # project's real limits in AI Studio; raise these to match.
+    llm_rpm: int = 10
+    llm_rpd: int = 200
+    llm_reasoning_effort: str = ""
+    llm_max_output_tokens: int = 0
     apify_token: str = ""
     apify_linkedin_jobs_actor: str = "curious_coder~linkedin-jobs-scraper"
     apify_google_actor: str = "apify~google-search-scraper"
     apollo_api_key: str = ""
     hunter_api_key: str = ""
-    smtp_host: str = ""
+    smtp_host: str = GMAIL_SMTP_HOST
     smtp_port: int = 587
     smtp_username: str = ""
     smtp_password: str = ""
@@ -85,6 +97,14 @@ class Secrets(BaseModel):
     cron_secret: str = ""
     database_url: str = ""
     db_path: str = "data/jobhunt.db"
+
+    @property
+    def smtp_ready(self) -> bool:
+        return bool(self.smtp_host and self.smtp_username and self.smtp_password and self.sender_email)
+
+    @property
+    def uses_gmail(self) -> bool:
+        return self.smtp_host.lower() in GMAIL_SMTP_HOSTS
 
     @property
     def sender_domain(self) -> str:
@@ -120,28 +140,61 @@ def load_dotenv(path: Path) -> None:
         os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
+def _int(value: str | None, default: int) -> int:
+    try:
+        return int(value) if value not in (None, "") else default
+    except ValueError:
+        return default
+
+
+def _llm_env(e) -> dict:
+    """LLM_API_KEY, GEMINI_API_KEY or OPENAI_API_KEY, in that order. An
+    OPENAI_API_KEY on its own (no LLM_BASE_URL) keeps pointing at OpenAI."""
+    key = e("LLM_API_KEY") or e("GEMINI_API_KEY") or e("OPENAI_API_KEY") or ""
+    only_openai = bool(e("OPENAI_API_KEY")) and not (e("LLM_API_KEY") or e("GEMINI_API_KEY"))
+    base = e("LLM_BASE_URL") or (OPENAI_BASE_URL if only_openai else GEMINI_BASE_URL)
+    gemini = is_gemini(base)
+    return {
+        "llm_api_key": key.strip(),
+        "llm_base_url": base,
+        "llm_model": e("LLM_MODEL") or (GEMINI_MODEL if gemini else OPENAI_MODEL),
+        "llm_rpm": _int(e("LLM_RPM"), 10),
+        "llm_rpd": _int(e("LLM_RPD"), 200),
+        # Gemini spends "thinking" tokens by default; low keeps them small.
+        "llm_reasoning_effort": e("LLM_REASONING_EFFORT", "low" if gemini else ""),
+        "llm_max_output_tokens": _int(e("LLM_MAX_OUTPUT_TOKENS"), 0),
+    }
+
+
 def _env_secrets() -> Secrets:
     e = os.environ.get
     defaults = Secrets()
+    smtp_user = e("SMTP_USER") or e("SMTP_USERNAME") or ""
+    # Gmail shows App Passwords as four groups of four; spaces are not part of it.
+    smtp_password = re.sub(r"\s+", "", e("SMTP_PASSWORD", ""))
+    smtp_host = e("SMTP_HOST") or GMAIL_SMTP_HOST
+    smtp_port = _int(e("SMTP_PORT"), 587)
+    use_ssl = e("SMTP_USE_SSL")
+    imap_default = "imap.gmail.com" if smtp_host.lower() in GMAIL_SMTP_HOSTS and smtp_user else ""
     return Secrets(
-        llm_base_url=e("LLM_BASE_URL", defaults.llm_base_url),
-        llm_api_key=e("LLM_API_KEY", ""),
-        llm_model=e("LLM_MODEL", defaults.llm_model),
+        **_llm_env(e),
         apify_token=e("APIFY_TOKEN", ""),
         apify_linkedin_jobs_actor=e("APIFY_LINKEDIN_JOBS_ACTOR", defaults.apify_linkedin_jobs_actor),
         apify_google_actor=e("APIFY_GOOGLE_ACTOR", defaults.apify_google_actor),
         apollo_api_key=e("APOLLO_API_KEY", ""),
         hunter_api_key=e("HUNTER_API_KEY", ""),
-        smtp_host=e("SMTP_HOST", ""),
-        smtp_port=int(e("SMTP_PORT", "587") or 587),
-        smtp_username=e("SMTP_USERNAME", ""),
-        smtp_password=e("SMTP_PASSWORD", ""),
-        smtp_use_ssl=e("SMTP_USE_SSL", "false").lower() in ("1", "true", "yes"),
-        imap_host=e("IMAP_HOST", ""),
-        imap_username=e("IMAP_USERNAME", "") or e("SMTP_USERNAME", ""),
-        imap_password=e("IMAP_PASSWORD", "") or e("SMTP_PASSWORD", ""),
+        smtp_host=smtp_host,
+        smtp_port=smtp_port,
+        smtp_username=smtp_user,
+        smtp_password=smtp_password,
+        # Port 465 is implicit TLS; 587 (and 25/2525) use STARTTLS.
+        smtp_use_ssl=use_ssl.lower() in ("1", "true", "yes") if use_ssl else smtp_port == 465,
+        imap_host=e("IMAP_HOST") or imap_default,
+        imap_username=e("IMAP_USERNAME") or smtp_user,
+        imap_password=re.sub(r"\s+", "", e("IMAP_PASSWORD", "")) or smtp_password,
         sender_name=e("SENDER_NAME", ""),
-        sender_email=e("SENDER_EMAIL", ""),
+        # Gmail rewrites From to the signed-in account, so default to it.
+        sender_email=e("SENDER_EMAIL") or (smtp_user if "@" in smtp_user else ""),
         dkim_selector=e("DKIM_SELECTOR", ""),
         sender_postal_address=e("SENDER_POSTAL_ADDRESS", ""),
         public_base_url=e("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/"),
