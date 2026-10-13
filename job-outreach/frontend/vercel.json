@@ -1,0 +1,16 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "crons": [
+    { "path": "/cron/tick", "schedule": "0 8 * * *" }
+  ],
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://jobhunt-outreach.onrender.com/api/:path*" },
+    { "source": "/u/:path*", "destination": "https://jobhunt-outreach.onrender.com/u/:path*" },
+    { "source": "/cron/:path*", "destination": "https://jobhunt-outreach.onrender.com/cron/:path*" },
+    { "source": "/healthz", "destination": "https://jobhunt-outreach.onrender.com/healthz" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

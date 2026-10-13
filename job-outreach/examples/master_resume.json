@@ -1,0 +1,70 @@
+{
+  "basics": {
+    "name": "Jane Doe",
+    "label": "Backend Engineer",
+    "email": "jane@janedoe-careers.com",
+    "phone": "+1 555 010 0199",
+    "url": "https://janedoe.dev",
+    "summary": "Backend engineer with six years building high-throughput APIs and data pipelines in Python and Go on AWS. Comfortable owning services end to end, from system design to on-call.",
+    "location": {"city": "New York", "region": "NY", "countryCode": "US"},
+    "profiles": [
+      {"network": "GitHub", "username": "janedoe", "url": "https://github.com/janedoe"},
+      {"network": "LinkedIn", "username": "janedoe", "url": "https://linkedin.com/in/janedoe"}
+    ]
+  },
+  "work": [
+    {
+      "name": "Paylane",
+      "position": "Senior Backend Engineer",
+      "location": "New York, NY",
+      "startDate": "2022-03",
+      "summary": "Payments infrastructure team.",
+      "highlights": [
+        "Designed an idempotent payments API in Go and PostgreSQL handling 4,000 requests per second at p99 under 80ms",
+        "Migrated batch reconciliation jobs from cron scripts to Airflow on Kubernetes, cutting failed runs by 70%",
+        "Introduced OpenTelemetry tracing and Grafana dashboards across 14 microservices, halving mean time to resolution",
+        "Mentored three engineers and ran the team's system design review"
+      ]
+    },
+    {
+      "name": "Shopwise",
+      "position": "Software Engineer",
+      "location": "Remote",
+      "startDate": "2019-06",
+      "endDate": "2022-02",
+      "highlights": [
+        "Built a Django REST service for catalogue search backed by Elasticsearch, serving 2M daily queries",
+        "Wrote a Kafka consumer pipeline in Python that streamed order events into Snowflake for analytics",
+        "Reduced AWS spend by 30% by right-sizing EC2 fleets and moving static assets to S3 and CloudFront",
+        "Set up GitHub Actions CI/CD with Docker images and automated integration tests"
+      ]
+    },
+    {
+      "name": "Datacraft Labs",
+      "position": "Junior Developer",
+      "location": "Boston, MA",
+      "startDate": "2018-01",
+      "endDate": "2019-05",
+      "highlights": [
+        "Maintained Flask internal tools and wrote SQL reports for the operations team",
+        "Automated weekly data exports with Bash and Python, saving 6 hours of manual work per week"
+      ]
+    }
+  ],
+  "education": [
+    {"institution": "Northeastern University", "area": "Computer Science", "studyType": "BS", "startDate": "2014-09", "endDate": "2018-05"}
+  ],
+  "skills": [
+    {"name": "Languages", "keywords": ["Python", "Go", "SQL", "Bash"]},
+    {"name": "Backend", "keywords": ["Django", "Flask", "FastAPI", "REST", "gRPC", "Microservices"]},
+    {"name": "Data", "keywords": ["PostgreSQL", "Elasticsearch", "Kafka", "Airflow", "Snowflake", "Redis"]},
+    {"name": "Infrastructure", "keywords": ["AWS", "Kubernetes", "Docker", "Terraform", "GitHub Actions", "OpenTelemetry", "Grafana"]}
+  ],
+  "projects": [
+    {"name": "pgqueue", "description": "Open-source PostgreSQL-backed job queue for Python.", "url": "https://github.com/janedoe/pgqueue",
+     "highlights": ["Used in production by several small teams"], "keywords": ["Python", "PostgreSQL"]}
+  ],
+  "certificates": [
+    {"name": "AWS Certified Solutions Architect - Associate", "issuer": "Amazon Web Services", "date": "2021-08"}
+  ]
+}

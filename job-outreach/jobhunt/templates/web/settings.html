@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Targeting &amp; autopilot</h1>
+<p class="sub">What to hunt for and how the auto emailer behaves. Saved in the database, so it survives redeploys when DATABASE_URL is set.</p>
+
+<form method="post" action="/settings">
+<div class="grid g2">
+  <div class="card">
+    <h2>Internships</h2>
+    <div class="field"><b>Seasons</b><input type="text" name="seasons" value="{{ t.seasons | join(', ') }}" placeholder="Summer 2027, Winter 2026">
+      <span class="small muted">Comma separated. Used in search queries and in the email subject.</span></div>
+    <div class="field"><b>Roles (one per line)</b><textarea name="roles" style="min-height:100px">{{ t.roles | join('\n') }}</textarea></div>
+    <div class="field"><b>Locations (one per line, empty = anywhere)</b><textarea name="locations" style="min-height:70px" placeholder="Bengaluru&#10;Remote">{{ t.locations | join('\n') }}</textarea></div>
+    <div class="field"><b>Companies to cold-email directly (one per line)</b>
+      <textarea name="companies" style="min-height:100px" placeholder="Razorpay, razorpay.com&#10;zerodha.com">{{ t.companies | join('\n') }}</textarea>
+      <span class="small muted">"Name, domain" or just a domain. Founders and engineering leads there are found via Apollo/Hunter.</span></div>
+    <label class="chk"><input type="checkbox" name="require_season" value="true" {{ 'checked' if t.require_season }}>
+      <span>Only keep posts and listings that mention one of the seasons</span></label>
+  </div>
+  <div class="card">
+    <h2>Lead sources</h2>
+    {% for key, label in sources.items() %}
+    <label class="chk"><input type="checkbox" name="sources" value="{{ key }}" {{ 'checked' if key in t.sources }}>
+      <span><b>{{ key | replace('_', ' ') }}</b><br><span class="small muted">{{ label }}</span></span></label>
+    {% endfor %}
+    <div class="field" style="margin-top:12px"><b>Results per search</b><input type="number" name="max_results_per_query" value="{{ t.max_results_per_query }}" min="5" max="100">
+      <span class="small muted">Apify bills per result; keep this small at first.</span></div>
+
+    <h2 style="margin-top:20px">Auto emailer</h2>
+    <label class="chk"><input type="checkbox" name="auto_send" value="true" {{ 'checked' if t.auto_send }}>
+      <span><b>Auto-send</b><br><span class="small muted">Approve and send drafts to verified addresses (or confidence &ge; {{ min_conf }}%) without asking. Off = every email waits for your approval.</span></span></label>
+    <div class="field"><b>Full cycle every</b><input type="number" name="cycle_every_hours" value="{{ t.cycle_every_hours }}" min="1"> hours</div>
+    <div class="field"><b>Resumes crafted per cycle</b><input type="number" name="tailor_per_cycle" value="{{ t.tailor_per_cycle }}" min="1" max="50"></div>
+    <div class="field"><b>Emails per tick</b><input type="number" name="per_tick" value="{{ t.per_tick }}" min="1" max="10">
+      <span class="small muted">Plus the warm-up/daily cap shown on Sending.</span></div>
+    <label class="chk"><input type="checkbox" name="followups_enabled" value="true" {{ 'checked' if t.followups_enabled }}>
+      <span>Send one follow-up if there's no reply after <input type="number" name="followup_after_days" value="{{ t.followup_after_days }}" min="2"> days</span></label>
+  </div>
+</div>
+<div class="row" style="margin-bottom:18px"><button class="btn primary">Save settings</button></div>
+</form>
+
+<div class="grid g2">
+  <div class="card">
+    <h2>Keys &amp; services</h2>
+    <table>
+    {% for s in setup %}
+      <tr><td style="width:60px">{% if s.ok %}<span class="ok-t">set</span>{% else %}<span class="warn-t">missing</span>{% endif %}</td>
+          <td><b>{{ s.name }}</b>{% if not s.ok %}<div class="small muted">{{ s.how }}</div>{% endif %}</td></tr>
+    {% endfor %}
+    </table>
+  </div>
+  <div class="card">
+    <h2>Keep it running</h2>
+    <p class="small">The auto emailer runs when something calls the tick URL. Add a free job at
+      <a href="https://cron-job.org" target="_blank" rel="noopener">cron-job.org</a> every 15 minutes:</p>
+    <pre class="desc small" style="background:#f8fafc;padding:8px;border-radius:8px;word-break:break-all">{{ cron_url }}</pre>
+    <p class="small muted">It also keeps the free Render instance awake. Last tick: {{ auto.last_tick | when or 'never' }}{% if auto_status.running %} (running: {{ auto_status.step or 'starting' }}){% endif %}.</p>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="spread"><div><h1>Internship leads</h1><p class="sub">People and companies taking interns. Each lead gets a tailored resume and a direct email; no application portals.</p></div>
+<form method="get" style="width:280px"><input type="hidden" name="status" value="{{ status }}"><input type="hidden" name="source" value="{{ source }}"><input type="search" name="q" value="{{ q }}" placeholder="Search role, company, person"></form></div>
+
+<div class="tabs">
+  {% for s in tabs %}
+  <a href="/leads?status={{ s }}&source={{ source }}&q={{ q }}" class="{{ 'on' if status == s }}">{{ s | replace('_', ' ') | capitalize }}{% if s != 'all' %} <span class="muted">{{ counts.get(s, 0) }}</span>{% endif %}</a>
+  {% endfor %}
+  <span style="flex:1"></span>
+  {% for key in ['all'] + sources.keys()|list %}<a href="/leads?status={{ status }}&source={{ key }}&q={{ q }}" class="{{ 'on' if source == key }}">{{ key | replace('_', ' ') }}</a>{% endfor %}
+</div>
+
+<div class="card" style="padding:6px 8px">
+{% if leads %}
+<table>
+  <tr><th>Opportunity</th><th>Season</th><th>Fit</th><th>Status</th><th>Found</th><th></th></tr>
+  {% for l in leads %}
+  <tr>
+    <td><a href="/leads/{{ l.id }}"><b>{{ l.title }}</b></a>
+      <div class="muted small">{{ l.company or 'company unknown' }}{% if l.poster_name %} &middot; posted by {{ l.poster_name }}{% endif %} &middot; {{ l.source | replace('_', ' ') }}{% if l.location %} &middot; {{ l.location }}{% endif %}</div></td>
+    <td class="small">{{ l.season or '' }}</td>
+    <td>{% if l.match_score is not none %}<span class="score">{{ (l.match_score * 100)|round|int }}%</span><div class="bar"><i style="width: {{ (l.match_score * 100)|round|int }}%"></i></div>{% else %}<span class="muted small">n/a</span>{% endif %}</td>
+    <td><span class="pill {{ l.status }}">{{ l.status | replace('_', ' ') }}</span>{% if l.doc_id %} <span class="chip gray">resume</span>{% endif %}</td>
+    <td class="small muted">{{ (l.discovered_at or '')[:10] }}</td>
+    <td>{% if l.url %}<a class="small" href="{{ l.url }}" target="_blank" rel="noopener">source</a>{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}<p class="muted" style="padding:12px">No leads in this view.</p>{% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,70 @@
+{
+  "basics": {
+    "name": "Alex Rivera",
+    "label": "Computer Science Student",
+    "email": "alex.rivera@example.com",
+    "phone": "+1 555 010 0142",
+    "url": "https://alexrivera.dev",
+    "summary": "Third-year computer science student who builds backend services and data tools in Python and Go. Looking for a software engineering internship.",
+    "location": {"city": "Austin", "region": "TX", "countryCode": "US"},
+    "profiles": [
+      {"network": "GitHub", "username": "alexrivera", "url": "https://github.com/alexrivera"},
+      {"network": "LinkedIn", "username": "alexrivera", "url": "https://linkedin.com/in/alexrivera"}
+    ]
+  },
+  "education": [
+    {
+      "institution": "University of Texas at Austin",
+      "area": "Computer Science",
+      "studyType": "B.S.",
+      "startDate": "2024-08",
+      "endDate": "2028-05",
+      "score": "GPA 3.8/4.0",
+      "courses": ["Data Structures", "Algorithms", "Operating Systems", "Databases", "Machine Learning"]
+    }
+  ],
+  "work": [
+    {
+      "name": "Campus IT Services",
+      "position": "Student Developer (part-time)",
+      "location": "Austin, TX",
+      "startDate": "2025-09",
+      "highlights": [
+        "Built a Flask and PostgreSQL ticket dashboard used by 40 staff to track device repairs",
+        "Automated weekly inventory reports with Python and SQL, saving 5 hours of manual work per week",
+        "Containerised two internal tools with Docker and set up GitHub Actions CI"
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "name": "ShortLink",
+      "description": "URL shortener with analytics.",
+      "url": "https://github.com/alexrivera/shortlink",
+      "highlights": [
+        "Go HTTP service with Redis caching serving 1,000 requests per second in load tests",
+        "React dashboard showing click analytics"
+      ],
+      "keywords": ["Go", "Redis", "React"]
+    },
+    {
+      "name": "Course Recommender",
+      "description": "Recommends electives from past student reviews.",
+      "highlights": [
+        "Trained a scikit-learn model on 12,000 course reviews with pandas feature engineering",
+        "Served predictions through a FastAPI endpoint deployed on AWS"
+      ],
+      "keywords": ["Python", "scikit-learn", "pandas", "FastAPI", "AWS"]
+    }
+  ],
+  "skills": [
+    {"name": "Languages", "keywords": ["Python", "Go", "Java", "JavaScript", "SQL"]},
+    {"name": "Backend", "keywords": ["Flask", "FastAPI", "PostgreSQL", "Redis", "Docker"]},
+    {"name": "Data", "keywords": ["pandas", "scikit-learn"]},
+    {"name": "Tools", "keywords": ["Git", "GitHub Actions", "AWS", "Linux"]}
+  ],
+  "awards": [
+    {"title": "Dean's List", "date": "2025", "awarder": "University of Texas at Austin"},
+    {"title": "2nd place, HackTX", "date": "2025-10"}
+  ]
+}
